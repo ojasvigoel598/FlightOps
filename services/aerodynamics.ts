@@ -389,10 +389,12 @@ function sourceInfluence(panels: BuiltPanels, j: number, p: PanelPoint): PanelPo
  * this is a NON-LIFTING solution; it is exact for thick bodies at α = 0 and
  * useful for pressure loads. Lift is handled by `vortexLatticeLift`.
  */
-export function sourcePanelPressure(
-  bodyPoints: PanelPoint[],
-  alphaDeg: number,
-): CpResult[] {
+/**
+ * Solve the constant-strength source-panel system: source strengths σ_j such
+ * that the normal velocity vanishes at every control point (Hess–Smith,
+ * Progress in Aerospace Sciences 8, 1967; non-lifting solution).
+ */
+function solveSourceStrengths(bodyPoints: PanelPoint[], alphaDeg: number): number[] {
   assertFinite('alphaDeg', alphaDeg);
   if (bodyPoints.length < 8) {
     throw new Error(`aerodynamics: need at least 8 body points, got ${bodyPoints.length}`);
@@ -412,8 +414,19 @@ export function sourcePanelPressure(
     }
     rhs.push(-(vInf.x * panels.normals[i].x + vInf.y * panels.normals[i].y));
   }
+  return solveLinearSystem(matrix, rhs);
+}
 
-  const strengths = solveLinearSystem(matrix, rhs);
+export function sourcePanelPressure(
+  bodyPoints: PanelPoint[],
+  alphaDeg: number,
+): CpResult[] {
+  const panels = buildPanels(bodyPoints);
+  const n = panels.mid.length;
+  const alpha = (alphaDeg * PI) / 180;
+  const vInf = { x: Math.cos(alpha), y: Math.sin(alpha) };
+
+  const strengths = solveSourceStrengths(bodyPoints, alphaDeg);
 
   const cp: CpResult[] = [];
   for (let i = 0; i < n; i += 1) {
@@ -431,6 +444,79 @@ export function sourcePanelPressure(
     });
   }
   return cp;
+}
+
+// ---------------------------------------------------------------------------
+// Velocity-field evaluation (for potential-flow visualisation)
+// ---------------------------------------------------------------------------
+
+export interface VelocityFieldPoint {
+  x: number;
+  y: number;
+  /** velocity x-component / V∞ (dimensionless) */
+  u: number;
+  /** velocity y-component / V∞ (dimensionless) */
+  v: number;
+}
+
+/** True when (px, py) is strictly inside the polygon (ray-casting). */
+function pointInPolygon(px: number, py: number, poly: PanelPoint[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i, i += 1) {
+    const xi = poly[i].x;
+    const yi = poly[i].y;
+    const xj = poly[j].x;
+    const yj = poly[j].y;
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
+ * Evaluate the (non-lifting) potential-flow velocity field around a closed
+ * body: freestream + source panels, normalised by V∞. Grid points inside the
+ * body are omitted (the flow field is only defined outside it). This is the
+ * same solution that produces the Cp distribution, so every arrow is a real
+ * computed quantity — nothing decorative.
+ */
+export function velocityField(
+  bodyPoints: PanelPoint[],
+  alphaDeg: number,
+  xMin: number,
+  xMax: number,
+  yMin: number,
+  yMax: number,
+  nx: number,
+  ny: number,
+): VelocityFieldPoint[] {
+  assertFinite('alphaDeg', alphaDeg);
+  if (!Number.isInteger(nx) || nx < 2 || nx > 100) throw new Error('aerodynamics: nx in [2, 100]');
+  if (!Number.isInteger(ny) || ny < 2 || ny > 100) throw new Error('aerodynamics: ny in [2, 100]');
+  const panels = buildPanels(bodyPoints);
+  const strengths = solveSourceStrengths(bodyPoints, alphaDeg);
+  const alpha = (alphaDeg * PI) / 180;
+  const cosA = Math.cos(alpha);
+  const sinA = Math.sin(alpha);
+
+  const out: VelocityFieldPoint[] = [];
+  for (let iy = 0; iy < ny; iy += 1) {
+    const y = yMin + ((yMax - yMin) * iy) / (ny - 1);
+    for (let ix = 0; ix < nx; ix += 1) {
+      const x = xMin + ((xMax - xMin) * ix) / (nx - 1);
+      if (pointInPolygon(x, y, bodyPoints)) continue;
+      let u = cosA;
+      let v = sinA;
+      for (let j = 0; j < strengths.length; j += 1) {
+        const vel = sourceInfluence(panels, j, { x, y });
+        u += strengths[j] * vel.x;
+        v += strengths[j] * vel.y;
+      }
+      out.push({ x, y, u, v });
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import { Badge, Panel, Screen, ScreenHeader } from '@/components';
+import { FlowField } from '@/components/feature/FlowField';
 import { UnsteadyLab } from '@/components/feature/UnsteadyLab';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
 import {
@@ -197,6 +198,10 @@ export default function AeroScreen() {
               Cp = 1 − (V_t/V∞)². Validated against the exact cylinder solution
               (doublet, Cp = 1 − 4·sin²θ) to ~10⁻¹⁰.
             </Text>
+          </Panel>
+
+          <Panel title="Flow field" subtitle="Non-lifting potential flow around the airfoil.">
+            <FlowField airfoilId={airfoilId} alphaDeg={0} />
           </Panel>
 
           {analysis.warnings.length > 0 ? (
