@@ -90,6 +90,47 @@ Key properties:
 - **Company** — money (£M), XP/levels, engineers and an upgrade shop (composite airframe, laminar wings, precision machining, AI co-pilot).
 - **Persistence** — save state lives in AsyncStorage; the game runs fully offline with no backend required.
 
+## Aerodynamics module (Aero Lab)
+
+`services/aerodynamics.ts` is a self-contained, dependency-free **linear-aerodynamics** library — the kind of tool described by the classic "linear aerodynamics tool that runs on a smartphone" project brief. It runs identically on web, iOS and Android; the **Aero Lab** tab in the app is its UI.
+
+### Models implemented
+
+| Quantity | Formula | Notes |
+| --- | --- | --- |
+| ISA atmosphere | hydrostatic + lapse rate (0–20 km geopotential), Sutherland viscosity | returns T, p, ρ, a, μ |
+| Dynamic pressure | q = ½·ρ·V² | Pa |
+| Mach number | M = V/a | valid-when < 0.3 (incompressible model) |
+| Reynolds number | Re = ρ·V·c/μ | based on reference chord |
+| Pressure distribution | constant-strength **source panel method** | non-lifting, exact for thick bodies at α = 0° |
+| Lift | 2D **vortex lattice** (vortices at quarter-chord, control points at three-quarter-chord) + thin-airfoil theory | camber handled via camber-line slope |
+| Zero-lift angle | α_L0 from thin-airfoil Fourier coefficients | trapezoidal quadrature |
+| Drag | parabolic polar CD = cd0 + k·CL², k = 1/(π·e·AR) for finite wings | |
+
+### Units and conventions
+
+Everything is **SI**: metres, seconds, kg, Pa, N/m, K. Angles are degrees at the API boundary, converted to radians internally. Chord and panel coordinates are normalised by chord. The reference area for CL/CD is the chord (2D section convention).
+
+### Validation
+
+The module is validated against closed-form solutions (regression-tested in `tests/aerodynamics.test.ts`):
+
+- **Cylinder Cp**: the source panel method reproduces the exact doublet solution Cp = 1 − 4·sin²θ to ~1e-9.
+- **Flat-plate lift**: CL from the vortex lattice converges to thin-airfoil theory CL = 2πα (within 0.13% at 128 panels); for a flat plate α_L0 = 0°.
+- **Cambered sections**: computed zero-lift angles match theory — NACA 2412 ≈ −2.08°, NACA 4412 ≈ −4.15° — and CL(α) tracks thin-airfoil theory.
+
+### Assumptions and limitations (surfaced in the UI)
+
+- **Incompressible** potential flow; results are flagged with a warning for M ≥ 0.3 (no compressibility correction).
+- **Linear, attached flow**; the lift model is not valid beyond roughly ±15° angle of attack (separation/stall) and the solver rejects |α| > 30°.
+- Source panels cannot generate circulation, so the Cp plot is the **non-lifting** pressure distribution at α = 0°; lift at α ≠ 0 comes from the vortex lattice model.
+- **Steady, inviscid**: skin friction enters only through the input cd0.
+- 2D section model; the finite-wing effect enters only through the induced-drag factor k = 1/(π·e·AR).
+
+### Inputs you control in the Aero Lab
+
+Altitude (0–20 km), true airspeed, reference chord, angle of attack, airfoil (NACA 0012 / 2412 / 4412 / 23012), panel count, cd0, section k, aspect ratio and span efficiency. The output shows the atmosphere state, q, M, Re, CL (VLM and thin-airfoil), CD, section lift/drag per span, and the Cp curve.
+
 ## Environment variables
 
 **None are required.** The core game and the Aero Lab run entirely on-device.
