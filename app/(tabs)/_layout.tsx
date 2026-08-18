@@ -69,6 +69,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="phone"
+        options={{
+          title: 'Phone',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="qrcode-scan" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
