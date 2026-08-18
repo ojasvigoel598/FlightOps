@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthUser, SendOTPOptions, SignUpResult } from '../types';
 
 const MOCK_STORAGE_KEYS = {
-  USERS: '@onspace_mock_users',
-  CURRENT_SESSION: '@onspace_mock_session',
+  USERS: '@flightops_mock_users',
+  CURRENT_SESSION: '@flightops_mock_session',
 } as const;
 
 interface MockUser {

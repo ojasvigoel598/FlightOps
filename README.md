@@ -49,7 +49,7 @@ services/               Pure game + physics logic
   contracts.ts          Procedural contract generation
   reachable-url.ts      Loopback-safe URL resolution for the QR workflow
   pwa.ts                PWA head tags + service-worker registration
-template/               OnSpace template remnants (auth scaffolding, unused)
+template/               Auth scaffolding (unused, not mounted in the app)
 tests/                  Vitest unit + physics sanity tests
 public/                 Web-only static assets (manifest.json, sw.js, icon)
 ```
