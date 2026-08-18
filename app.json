@@ -21,7 +21,24 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/logo.png"
+      "favicon": "./assets/images/logo.png",
+      "name": "Flight Ops",
+      "shortName": "Flight Ops",
+      "description": "Flight-ops tycoon game with a validated linear-aerodynamics lab",
+      "lang": "en",
+      "themeColor": "#060A12",
+      "backgroundColor": "#060A12",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "scope": "/",
+      "icons": [
+        {
+          "src": "./public/icon.png",
+          "sizes": "1024x1024",
+          "type": "image/png"
+        }
+      ]
     },
     "plugins": [
       "expo-router",
