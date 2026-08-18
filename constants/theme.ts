@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Mission-control design tokens.
 
 export const colors = {

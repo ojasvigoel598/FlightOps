@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Failure engine: event pool + weighted selection + outcome resolver.
 // Pure functions driven by a seeded Rng for reproducibility.
 

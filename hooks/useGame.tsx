@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Hook consumer for the game state context.
 
 import { useContext } from 'react';

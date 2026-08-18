@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';

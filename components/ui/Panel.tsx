@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
 

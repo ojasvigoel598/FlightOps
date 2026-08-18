@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Component barrel exports.
 
 export { Button } from './ui/Button';

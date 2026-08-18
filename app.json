@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "onspace-app",
-    "slug": "onspace-app",
+    "name": "Flight Ops",
+    "slug": "flight-ops",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
-    "scheme": "onspaceapp",
+    "scheme": "flightops",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
