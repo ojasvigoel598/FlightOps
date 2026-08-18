@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';

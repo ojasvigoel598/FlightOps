@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Mission runtime: a deterministic, step-based flight state machine.
 
 import { useCallback, useMemo, useRef, useState } from 'react';

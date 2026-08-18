@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Static game configuration: parts, airframe, upgrades, tuning constants.
 
 import type { EngineId, FuelId, WingId } from '@/types/game';

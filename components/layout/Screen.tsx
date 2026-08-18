@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 import { colors, spacing } from '@/constants/theme';

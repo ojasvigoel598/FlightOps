@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Contract generation. Deterministic per seed.
 
 import type { Contract, Difficulty } from '@/types/game';

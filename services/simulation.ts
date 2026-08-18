@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Physics / simulation engine. Pure functions, no React.
 // Converts a design + contract into human-readable vehicle stats.
 

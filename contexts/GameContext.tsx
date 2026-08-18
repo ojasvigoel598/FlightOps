@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Global company + design + contract state. Provider only.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';

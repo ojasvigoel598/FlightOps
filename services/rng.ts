@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Deterministic seeded pseudo-random generator (mulberry32).
 // Given the same seed, a mission always produces reproducible outcomes.
 

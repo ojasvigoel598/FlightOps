@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Reusable style patterns built on the theme tokens.
 
 import { StyleSheet } from 'react-native';

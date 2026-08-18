@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Shared game domain types for FLIGHT OPS.
 
 export type WingId = 'short' | 'standard' | 'long';

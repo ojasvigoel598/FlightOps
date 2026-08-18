@@ -1,4 +1,3 @@
-// Powered by OnSpace.AI
 // Small pure math helpers.
 
 export const clamp = (value: number, min: number, max: number): number =>
