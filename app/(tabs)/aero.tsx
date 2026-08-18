@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import { Badge, Panel, Screen, ScreenHeader } from '@/components';
+import { UnsteadyLab } from '@/components/feature/UnsteadyLab';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
 import {
   AIRFOILS,
@@ -207,6 +208,8 @@ export default function AeroScreen() {
               ))}
             </Panel>
           ) : null}
+
+          <UnsteadyLab />
         </>
       ) : null}
 

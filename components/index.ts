@@ -4,6 +4,8 @@ export { Button } from './ui/Button';
 export { Panel } from './ui/Panel';
 export { StatBar } from './ui/StatBar';
 export { Badge } from './ui/Badge';
+export { LineChart } from './charts/LineChart';
+export type { ChartSeries } from './charts/LineChart';
 
 export { Screen } from './layout/Screen';
 export { ScreenHeader } from './layout/ScreenHeader';
