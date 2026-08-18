@@ -1,75 +1,69 @@
-# Welcome to Flight OPS
+# Flight Ops
 
-it's built with React Native and Expo, demonstrates this capability—integrating popular third-party libraries to deliver seamless cross-platform performance across iOS, Android, and Web environments.
+A flight-ops tycoon game with a built-in **linear-aerodynamics lab**, built with React Native and Expo for iOS, Android and web.
+
+- **Play the game** — run a cargo airline: take contracts, design aircraft in the hangar, fly missions with live telemetry and in-flight events, and grow your company.
+- **Run the Aero Lab** — an engineering tool that computes ISA atmosphere conditions, dynamic pressure, Reynolds and Mach numbers, a 2D source-panel method for flow over airfoils, a vortex-lattice lift model, and a drag polar. It is validated against thin-airfoil theory and the analytic cylinder pressure distribution, and it runs entirely on the phone.
+
+Author: **Ojasvi Goel**.
 
 ## Getting Started
 
-### 1. Install Dependencies
+The project is managed with **pnpm** (a `pnpm-lock.yaml` is committed).
 
 ```bash
-npm install
-# or
-yarn install
+pnpm install          # install dependencies
+pnpm test             # run the physics/unit test suite
+pnpm lint             # run ESLint
+pnpm exec tsc -b --noEmit   # typecheck
 ```
 
-### 2. Start the Project
-
-- Start the development server (choose your platform):
+### Run the app
 
 ```bash
-npm run start         # Start Expo development server
-npm run android       # Launch Android emulator
-npm run ios           # Launch iOS simulator
-npm run web           # Start the web version
+pnpm web              # Expo dev server (web)
+pnpm android          # Expo dev client on an Android emulator/device
+pnpm ios              # Expo dev client on the iOS simulator
 ```
 
-- Reset the project (clear cache, etc.):
+`pnpm web` starts Metro on port 8081. The web build is also statically exported for hosting:
 
 ```bash
-npm run reset-project
+npx expo export --platform web   # static output in dist/
 ```
 
-### 3. Lint the Code
+## Project structure
 
-```bash
-npm run lint
+```
+app/                    Expo Router screens
+  (tabs)/               Contract board, Hangar, Missions, Company, Aero Lab, Phone
+  mission.tsx           In-flight mission screen
+  result.tsx            Mission result
+components/             Shared UI (panels, badges, telemetry deck, …)
+constants/              Theme tokens and config
+contexts/               Game state provider
+hooks/                  useGame / useMission
+services/               Pure game + physics logic
+  aerodynamics.ts       ISA atmosphere, panel method, vortex lattice, drag polar
+  simulation.ts         Mission simulation
+  contracts.ts          Procedural contract generation
+  reachable-url.ts      Loopback-safe URL resolution for the QR workflow
+  pwa.ts                PWA head tags + service-worker registration
+template/               OnSpace template remnants (auth scaffolding, unused)
+tests/                  Vitest unit + physics sanity tests
+public/                 Web-only static assets (manifest.json, sw.js, icon)
 ```
 
-## Main Dependencies
+## Game overview
 
-- React Native: 0.79.4
-- React: 19.0.0
-- Expo: ~53.0.12
-- Expo Router: ~5.1.0
-- Supabase: ^2.50.0
-- Other commonly used libraries:  
-  - @expo/vector-icons  
-  - react-native-paper  
-  - react-native-calendars  
-  - lottie-react-native  
-  - react-native-webview  
-  - and more
+- **Contract board** — procedurally generated cargo contracts (payload, distance, reward, difficulty) from a seeded RNG, so each run is reproducible.
+- **Hangar** — design your aircraft by picking wings, engine and fuel tank; a physics model computes weight, range, fuel burn, safety and mission feasibility.
+- **Missions** — fly with live telemetry (progress, fuel, integrity, engine health) and react to in-flight events (crosswind, engine vibration, fuel leak, bird strike, icing, turbulence, hydraulics) with risk/reward decisions.
+- **Company** — money (£M), XP/levels, engineers and an upgrade shop (composite airframe, laminar wings, precision machining, AI co-pilot).
+- **Persistence** — save state lives in AsyncStorage; the game runs fully offline with no backend required.
 
-For a full list of dependencies, see [package.json](./package.json).
+## Environment variables
 
-## Development Tools
+**None are required.** The core game and the Aero Lab run entirely on-device.
 
-- TypeScript: ~5.8.3
-- ESLint: ^9.25.0
-- @babel/core: ^7.25.2
-
-## Contributing
-
-1. Fork this repository
-2. Create a new branch (`git checkout -b main`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
-
-## License
-ongoing project so forgive me if bugs or msitakes 
-This project is private ("private": true). For collaboration inquiries, please contact the author.
-
----
-
-Feel free to add project screenshots, API documentation, feature descriptions, or any other information as needed.
+Optional, for future Supabase auth (dormant template code): `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in a local `.env.local` (gitignored). The running app does not call Supabase today.
