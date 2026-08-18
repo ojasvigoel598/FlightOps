@@ -131,6 +131,66 @@ The module is validated against closed-form solutions (regression-tested in `tes
 
 Altitude (0–20 km), true airspeed, reference chord, angle of attack, airfoil (NACA 0012 / 2412 / 4412 / 23012), panel count, cd0, section k, aspect ratio and span efficiency. The output shows the atmosphere state, q, M, Re, CL (VLM and thin-airfoil), CD, section lift/drag per span, and the Cp curve.
 
+## Mobile access via QR code
+
+The **Phone** tab renders a live QR code that opens the app in a phone browser:
+
+> Open on phone → [QR] → Scan this QR code with your phone
+
+The QR payload is **resolved at runtime** from the URL the app is actually served from (`window.location.origin` on web; the Expo dev-server host URI in native dev builds) — nothing is hard-coded. `services/reachable-url.ts` rejects loopback-only addresses (`localhost`, `127.0.0.1`, `0.0.0.0`, `::1`) because a phone can never reach those; when no reachable URL can be derived, the screen shows guidance instead of an unusable code. The same logic is unit-tested in `tests/reachable-url.test.ts`.
+
+Workflow:
+
+1. Open the app in the web preview (the preview URL is phone-reachable).
+2. Open the **Phone** tab and scan the QR with the phone camera / Google Lens.
+3. The phone opens the same app in its browser — all gameplay and the Aero Lab run on-device, so the phone needs no backend.
+4. On Android/Chrome the deployed web build can be installed to the home screen (it is an installable PWA — see below).
+
+The QR has a white quiet zone, high-contrast black modules on white, and is sized for normal scanning distance. Automated payload validation is covered by the unit tests; a physical scan on a real phone is the final check.
+
+## PWA and Android packaging
+
+### Progressive Web App
+
+The static web build is an installable PWA:
+
+- `public/manifest.json` — name, short name, theme/background colour (#060A12), standalone display, start URL and icons (`public/icon.png`, copied from the app logo).
+- `public/sw.js` — lightweight service worker: **network-first for navigations** (deep links and refreshes survive a dropped network) and **cache-first for same-origin static assets**. The game and Aero Lab are fully client-side, so offline use after first load is genuine.
+- `services/pwa.ts` — registers the worker only on the production web build (never in native builds or the dev server) and injects the manifest link, theme-colour and apple-touch-icon tags at runtime.
+
+### Android packaging (Android Studio path)
+
+The project is a managed Expo app, so the native Android project is generated rather than committed:
+
+```bash
+pnpm install
+npx expo prebuild --platform android   # generates android/ with the app identifier below
+# open android/ in Android Studio → Build → Build App Bundle(s)/APK(s)
+```
+
+- App identifier: `com.ojasvigoel.flightops`, `versionCode: 1` (in `app.json` — change `versionCode` on every release).
+- The icon/adaptive icon come from `assets/images/logo.png`; change them in `app.json` for a branded launcher icon.
+- For release builds, configure signing in Android Studio (Build → Generate Signed Bundle/APK) — a release build must not remain debug-signed.
+- If you later wrap the **deployed web URL** instead (Trusted Web Activity), the production URL must be HTTPS and you must serve `/.well-known/assetlinks.json` with your app's signing-certificate SHA-256 fingerprint; use `npx @bubblewrap/cli` or Android Studio's TWA tooling. The current prebuild route packages the app itself.
+
+This repository keeps the managed workflow (no committed `android/`/`ios/` folders), so the web preview and Expo Go workflow are unaffected by native packaging.
+
+## Testing
+
+```bash
+pnpm test
+```
+
+Runs the Vitest suite (`tests/`):
+
+- **Aerodynamics** — cylinder Cp vs the analytic doublet solution; flat-plate CL convergence to 2πα; zero-lift angles for cambered NACA sections; drag polar sanity; validation errors on impossible inputs.
+- **Simulation physics** — mission telemetry sanity (fuel burn, progress, event handling).
+- **Contracts** — seeded RNG reproducibility, difficulty/reward bounds.
+- **Math utils** — clamping, rounding, interpolation edge cases.
+- **Reachable URL** — QR payload validation: rejects localhost/loopback and non-http(s), accepts real hosts.
+
+Typecheck the whole project with `pnpm exec tsc -b --noEmit`. For release checks, export the static web build with `npx expo export --platform web` and smoke-test the app (launch → contract board → mission → Aero Lab → Phone tab → refresh) in the preview.
+
 ## Environment variables
 
 **None are required.** The core game and the Aero Lab run entirely on-device.
