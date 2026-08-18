@@ -54,6 +54,34 @@ tests/                  Vitest unit + physics sanity tests
 public/                 Web-only static assets (manifest.json, sw.js, icon)
 ```
 
+## Architecture
+
+The codebase follows a clean separation between **pure logic** and **presentation**:
+
+```
+Screens / UI (React Native, Expo Router)
+        │
+        ▼
+contexts/hooks (game state, mission lifecycle)
+        │
+        ▼
+services/ (pure, testable logic — no React, no I/O)
+   ├── simulation.ts     mission physics/telemetry
+   ├── contracts.ts      seeded contract generation
+   ├── aerodynamics.ts   ISA, panel method, vortex lattice, drag polar
+   └── rng.ts            deterministic RNG
+        │
+        ▼
+AsyncStorage (save state) — no backend required
+```
+
+Key properties:
+
+- **The same validated logic runs on every platform.** The Aero Lab and the game share one `services/` layer — there is no separate web/native code path, so phone, desktop and tablet results are identical by construction.
+- **Determinism.** Contract and mission generation use a seeded RNG (`services/rng.ts`), making runs reproducible for testing and teaching.
+- **No network dependency at runtime.** Persistence is local (AsyncStorage); the optional Supabase auth template code is not mounted in the running app.
+- **Web head/PWA wiring is isolated** in `services/pwa.ts` and guarded so it never runs in native builds.
+
 ## Game overview
 
 - **Contract board** — procedurally generated cargo contracts (payload, distance, reward, difficulty) from a seeded RNG, so each run is reproducible.
