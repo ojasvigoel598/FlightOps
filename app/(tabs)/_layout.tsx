@@ -52,6 +52,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="aero"
+        options={{
+          title: 'Aero Lab',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="function-variant" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="company"
         options={{
           title: 'Company',
