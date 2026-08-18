@@ -1,0 +1,26 @@
+{
+  "name": "Flight Ops",
+  "short_name": "Flight Ops",
+  "description": "Flight-ops tycoon game with a validated linear-aerodynamics lab",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#060A12",
+  "background_color": "#060A12",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
