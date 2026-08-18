@@ -21,6 +21,7 @@ import {
   reynoldsNumber,
   sourcePanelPressure,
   standardAtmosphere,
+  velocityField,
   vortexLatticeLift,
 } from '@/services/aerodynamics';
 
@@ -114,6 +115,38 @@ describe('source panel method', () => {
       expect(p.cp).toBeLessThan(20);
     }
     expect(Math.max(...cp.map((p) => p.cp))).toBeCloseTo(1, 1);
+  });
+});
+
+describe('velocity field', () => {
+  it('approaches the freestream in the far field', () => {
+    const geo = nacaGeometry(AIRFOILS[0]); // NACA 0012, chord 1 at the origin
+    const field = velocityField(geo.points(48), 0, -6, 6, -4, 4, 9, 7);
+    const far = field.filter((p) => Math.hypot(p.x, p.y) > 5);
+    expect(far.length).toBeGreaterThan(0);
+    for (const p of far) {
+      expect(p.u).toBeCloseTo(1, 1); // within ~10% of V∞ at 5+ chords
+      expect(Math.abs(p.v)).toBeLessThan(0.15);
+    }
+  });
+
+  it('is symmetric about the chord line for a symmetric airfoil at α = 0', () => {
+    const geo = nacaGeometry(AIRFOILS[0]);
+    const field = velocityField(geo.points(48), 0, -1.5, 2.5, -2, 2, 17, 17);
+    for (const p of field) {
+      const mirror = field.find((q) => Math.abs(q.x - p.x) < 1e-9 && Math.abs(q.y + p.y) < 1e-9);
+      if (mirror) {
+        expect(p.u).toBeCloseTo(mirror.u, 6);
+        expect(p.v).toBeCloseTo(-mirror.v, 6);
+      }
+    }
+  });
+
+  it('omits interior points (flow field is exterior only)', () => {
+    const geo = nacaGeometry(AIRFOILS[0]);
+    const field = velocityField(geo.points(48), 0, -1.5, 2.5, -0.6, 0.6, 21, 13);
+    // A point deep inside the 12%-thick airfoil must be excluded.
+    expect(field.some((p) => Math.abs(p.x - 0.5) < 0.05 && Math.abs(p.y - 0.0) < 0.05)).toBe(false);
   });
 });
 
