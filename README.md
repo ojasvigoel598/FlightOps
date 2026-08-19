@@ -100,12 +100,14 @@ Key properties:
 | --- | --- | --- |
 | ISA atmosphere | hydrostatic + lapse rate (0–20 km geopotential), Sutherland viscosity | returns T, p, ρ, a, μ |
 | Dynamic pressure | q = ½·ρ·V² | Pa |
-| Mach number | M = V/a | valid-when < 0.3 (incompressible model) |
+| Mach number | M = V/a | linear model valid below M ~0.7 |
 | Reynolds number | Re = ρ·V·c/μ | based on reference chord |
-| Pressure distribution | constant-strength **source panel method** | non-lifting, exact for thick bodies at α = 0° |
+| Pressure distribution | constant-strength **source panel method** (Hess & Smith 1967) | non-lifting, exact for thick bodies at α = 0° |
 | Lift | 2D **vortex lattice** (vortices at quarter-chord, control points at three-quarter-chord) + thin-airfoil theory | camber handled via camber-line slope |
 | Zero-lift angle | α_L0 from thin-airfoil Fourier coefficients | trapezoidal quadrature |
 | Drag | parabolic polar CD = cd0 + k·CL², k = 1/(π·e·AR) for finite wings | |
+| Compressibility | **Prandtl–Glauert** correction: CL_M = CL_0/β, β = √(1−M²) | extends linear validity to M < ~0.7 |
+| Pitching moment | Cm_{c/4} from thin-airfoil Fourier coefficients A1, A2 | nose-down for cambered sections |
 
 ### Units and conventions
 
@@ -113,23 +115,28 @@ Everything is **SI**: metres, seconds, kg, Pa, N/m, K. Angles are degrees at the
 
 ### Validation
 
-The module is validated against closed-form solutions (regression-tested in `tests/aerodynamics.test.ts`):
+The module is validated against closed-form solutions (91 regression tests in `tests/`):
 
 - **Cylinder Cp**: the source panel method reproduces the exact doublet solution Cp = 1 − 4·sin²θ to ~1e-9.
 - **Flat-plate lift**: CL from the vortex lattice converges to thin-airfoil theory CL = 2πα (within 0.13% at 128 panels); for a flat plate α_L0 = 0°.
 - **Cambered sections**: computed zero-lift angles match theory — NACA 2412 ≈ −2.08°, NACA 4412 ≈ −4.15° — and CL(α) tracks thin-airfoil theory.
+- **Prandtl–Glauert**: β = √(1−M²) factor verified at M = 0 (β = 1) and M = 0.5 (β = √0.75); CL_M × β = CL_0 to machine precision.
+- **Pitching moment**: symmetric airfoil Cm = 0; cambered Cm negative and monotone in camber (NACA 2412 ≈ −0.053, 4412 ≈ −0.094).
+- **Theodorsen/Wagner**: Bessel Wronskian, exact limits, Jones/Garrick error bounds, Duhamel–Theodorsen cross-validation (see `tests/unsteady.test.ts`).
+- **Discrete vortex**: Kelvin conservation (~1e-14), Wagner step-response within ~1% at s ≥ 10 (see `tests/unsteady-vortex.test.ts`).
 
 ### Assumptions and limitations (surfaced in the UI)
 
-- **Incompressible** potential flow; results are flagged with a warning for M ≥ 0.3 (no compressibility correction).
+- **Subsonic linearised** potential flow with **Prandtl–Glauert compressibility correction** (β = √(1−M²)); valid for M < ~0.7. A warning flags M ≥ 0.3; the solver rejects M ≥ 1.
 - **Linear, attached flow**; the lift model is not valid beyond roughly ±15° angle of attack (separation/stall) and the solver rejects |α| > 30°.
 - Source panels cannot generate circulation, so the Cp plot is the **non-lifting** pressure distribution at α = 0°; lift at α ≠ 0 comes from the vortex lattice model.
 - **Steady, inviscid**: skin friction enters only through the input cd0.
 - 2D section model; the finite-wing effect enters only through the induced-drag factor k = 1/(π·e·AR).
+- **Pitching moment** Cm_{c/4} is from thin-airfoil theory and does not include thickness or viscous contributions.
 
 ### Inputs you control in the Aero Lab
 
-Altitude (0–20 km), true airspeed, reference chord, angle of attack, airfoil (NACA 0012 / 2412 / 4412 / 23012), panel count, cd0, section k, aspect ratio and span efficiency. The output shows the atmosphere state, q, M, Re, CL (VLM and thin-airfoil), CD, section lift/drag per span, and the Cp curve.
+Altitude (0–20 km), true airspeed, reference chord, angle of attack, airfoil (10 NACA 4-digit sections: 0006, 0012, 0018, 2412, 4412, 2421, 6412, 23012, 4421, 0025, 4418), panel count, cd0, section k, aspect ratio and span efficiency. The output shows the atmosphere state, q, M, Re, CL (VLM, thin-airfoil, and Prandtl–Glauert corrected), CD (incompressible and corrected), Cm, α_L0, section lift/drag per span, and the Cp curve.
 
 ## Mobile access via QR code
 
@@ -181,13 +188,15 @@ This repository keeps the managed workflow (no committed `android/`/`ios/` folde
 pnpm test
 ```
 
-Runs the Vitest suite (`tests/`):
+Runs the Vitest suite (91 tests across 7 files):
 
-- **Aerodynamics** — cylinder Cp vs the analytic doublet solution; flat-plate CL convergence to 2πα; zero-lift angles for cambered NACA sections; drag polar sanity; validation errors on impossible inputs.
-- **Simulation physics** — mission telemetry sanity (fuel burn, progress, event handling).
-- **Contracts** — seeded RNG reproducibility, difficulty/reward bounds.
-- **Math utils** — clamping, rounding, interpolation edge cases.
-- **Reachable URL** — QR payload validation: rejects localhost/loopback and non-http(s), accepts real hosts.
+- **Aerodynamics** (37 tests) — cylinder Cp vs the analytic doublet solution; flat-plate CL convergence to 2πα; zero-lift angles for cambered NACA sections; Prandtl-Glauert correction factor and compressibility-corrected CL/CD; pitching moment coefficient for symmetric and cambered airfoils; drag polar sanity; validation errors on impossible inputs and supersonic Mach.
+- **Unsteady aerodynamics** (23 tests) — Bessel function Wronskian and zeros; Theodorsen C(k) limits, table values, monotonicity; Wagner function exact limits, small-time Sears series, large-time asymptotic, Jones/Garrick error bounds; Duhamel harmonic steady state vs Theodorsen (Garrick relation).
+- **Discrete vortex** (8 tests) — Kelvin circulation conservation; Wagner step-response CL tracking; symmetry in alpha.
+- **Simulation physics** (6 tests) — mission telemetry sanity (fuel burn, progress, event handling).
+- **Contracts** (4 tests) — seeded RNG reproducibility, difficulty/reward bounds.
+- **Math utils** (7 tests) — clamping, rounding, interpolation edge cases.
+- **Reachable URL** (6 tests) — QR payload validation: rejects localhost/loopback and non-http(s), accepts real hosts.
 
 Typecheck the whole project with `pnpm exec tsc -b --noEmit`. For release checks, export the static web build with `npx expo export --platform web` and smoke-test the app (launch → contract board → mission → Aero Lab → Phone tab → refresh) in the preview.
 
@@ -196,3 +205,30 @@ Typecheck the whole project with `pnpm exec tsc -b --noEmit`. For release checks
 **None are required.** The core game and the Aero Lab run entirely on-device.
 
 Optional, for future Supabase auth (dormant template code): `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in a local `.env.local` (gitignored). The running app does not call Supabase today.
+
+## References
+
+### Aerodynamics and flight physics
+
+1. **Anderson, J. D.** *Fundamentals of Aerodynamics*, 6th ed. McGraw-Hill, 2017. — Prandtl-Glauert correction (sec. 10.2), thin-airfoil theory (ch. 4), panel methods (ch. 3).
+2. **Katz, J. and Plotkin, A.** *Low-Speed Aerodynamics*, 2nd ed. Cambridge University Press, 2001. — Panel method formulation (ch. 11), vortex lattice method, unsteady thin-airfoil and discrete vortex methods (ch. 13).
+3. **Hess, J. L. and Smith, A. M. O.** "Calculation of potential flow about arbitrary bodies." *Progress in Aerospace Sciences* 8:1-138, 1967. — Constant-strength source panel method.
+4. **Abbott, I. H. and von Doenhoff, A. E.** *Theory of Wing Sections*. Dover, 1959. — NACA 4-digit airfoil geometry and thin-airfoil theory.
+5. **Theodorsen, T.** "General Theory of Aerodynamic Instability and the Mechanism of Flutter." NACA Report No. 496, 1935. — Theodorsen's function C(k).
+6. **Wagner, H.** "Uber die Entstehung des dynamischen Auftriebes von Tragflugeln." *Z. Angew. Math. Mech.* 5(1):17-35, 1925. — Wagner indicial lift function.
+7. **Jones, R. T.** "The Unsteady Lift of a Wing of Finite Aspect Ratio." NACA TR 681, 1940. — Two-exponential Wagner approximation.
+8. **Garrick, I. E.** "On Some Reciprocal Relations in the Theory of Nonstationary Flows." NACA TR 629, 1938. — Fourier pair linking C(k) and Phi(s).
+9. **Dawson, S. T. M. and Brunton, S. L.** "Improved approximations to the Wagner function using sparse identification of nonlinear dynamics." arXiv:2104.15122, 2021. — Exact Wagner function computation and error bounds.
+
+### Aircraft design
+
+10. **Sadraey, M. H.** *Aircraft Design: A Conceptual Approach*, 6th ed. AIAA Education Series, 2023. — Conceptual design methodology, configuration decisions, sizing, trade-offs.
+11. **Raymer, D. P.** *Aircraft Design: A Conceptual Approach*, 6th ed. AIAA, 2018. — General aircraft design reference.
+
+### Computational and educational resources
+
+12. **Barba, L. A. and Mesnard, O.** "AeroPython: classical aerodynamics of potential flow using Python." *Journal of Open Source Education* 2(15):45, 2019. DOI: 10.21105/jose.00045. — Educational panel-method implementations (BSD-3-Clause code, CC-BY 4.0 content); consulted for sign conventions, not copied.
+13. **Imperial College London.** SHARPy / UVLM. BSD-3-Clause. https://github.com/ImperialCollegeLondon/UVLM. — Unsteady vortex lattice method formulation; consulted for implicit Kelvin wake approach, not copied.
+14. **Abramowitz, M. and Stegun, I. A.** *Handbook of Mathematical Functions*. Dover, 1965. — Bessel function series and asymptotic expansions (A&S 9.1, 9.2).
+
+All aerodynamic models in this project are original TypeScript implementations by Ojasvi Goel, based on the published theory cited above. No third-party source code was copied into the repository. A complete research provenance document is in `docs/RESEARCH.md`.
