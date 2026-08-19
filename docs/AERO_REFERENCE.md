@@ -5,7 +5,7 @@ how each piece was validated, and what its limitations are. It is written for
 an aerospace-engineering student: enough theory to follow the code, and honest
 about every claim made.
 
-**Validation entry point:** `python3 scripts/validate_aero.py` — 66 checks,
+**Validation entry point:** `python3 scripts/validate_aero.py` — 43 checks,
 all passing. The TypeScript modules are the production code; the Python script
 ports the same algorithms so the mathematics can be checked against references
 without a JS runtime.
@@ -132,60 +132,12 @@ without a JS runtime.
   slope); it is accurate to ~1–2% elsewhere, which is why it is used in
   essentially every aeroelasticity textbook.
 
-## 5. Prandtl numerical lifting-line — `services/aero/liftingLine.ts`
+## 5. What is NOT implemented (honest scope)
 
-- **Source:** Prandtl (1918–19); Anderson, *Fundamentals of Aerodynamics*
-  (5th ed.), ch. 5; Katz & Plotkin, *Low-Speed Aerodynamics* (2001), ch. 12.
-  This is the Level-2 rung of the fidelity ladder: it takes a 2-D section
-  polar (default thin-airfoil slope a₀ = 2π) and predicts the *finite wing*'s
-  lift, induced drag, and spanwise loading — the bridge from airfoil to
-  aircraft.
-- **Formulation:** the bound circulation is expanded in a Fourier sine
-  series over the span (wing tips excluded — the downwash integral is
-  singular there):
-
-  ```
-  Γ(θ) = 2 b V Σ Aₙ sin(nθ),   y = (b/2) cos θ
-  ```
-
-  Substituting into the fundamental equation (section lift
-  Γ = ½ a₀ c V α_eff, with the induced angle αᵢ = Σ nAₙ sin(nθ)/sin θ
-  from the trailing vortex sheet) gives a linear system for Aₙ, solved by
-  Gauss–Jordan elimination (the same solver as the panel method). Then
-
-  ```
-  C_L  = π AR A₁
-  C_Di = π AR Σ n Aₙ²
-  e    = A₁² / Σ n Aₙ²        (span efficiency; e = 1 is ideal)
-  ```
-
-  Planforms: rectangular, elliptical (exact), linearly tapered, plus linear
-  washout twist.
-- **Validation:** the elliptical wing is the exact analytic benchmark:
-  e = 1, uniform downwash, C_L_alpha = a₀·AR/(AR+2) — matched to 1e-14.
-  The rectangular AR = 6 result (e ≈ 0.954, C_Lα ≈ 4.53/rad) is reported
-  as the **converged solution of the Prandtl integral equation**: the
-  Fourier series is N-converged (N = 640 changes nothing below 1e-5) and
-  an independent discrete horseshoe-vortex lifting line agrees within
-  0.25%. It is deliberately *not* cited against a remembered textbook
-  table. Symmetry (C_L(−α) = −C_L(α), even Fourier terms vanish), the
-  AR → ∞ limit back to the 2-D slope 2π, and symmetric tip unloading
-  under washout are all regression-checked.
-- **Twist implementation note:** washout is a function of |y|, so the code
-  uses |cos θ|. A plain cos θ is antisymmetric in θ — it would wash out one
-  tip while washing in the other; the symmetric-loading regression check
-  catches exactly that class of bug.
-- **Limitation:** classical lifting-line assumes thin, straight,
-  high-aspect-ratio wings in attached flow — no sweep, dihedral, thickness,
-  viscosity, or compressibility. That is the documented scope of Level 2.
-
-## 6. What is NOT implemented (honest scope)
-
-- **Profile drag:** inviscid potential flow produces zero drag (d'Alembert's
-  paradox), and no viscous/integral boundary layer exists yet. Induced drag
-  *is* computed at the finite-wing level (inviscid C_Di from the lifting
-  line), but profile drag C_D0 remains out of scope. This is a model
-  limitation, not an omission error.
+- **Drag:** inviscid potential flow produces zero drag (d'Alembert's
+  paradox). No viscous/integral boundary layer exists yet, so there is no
+  physically meaningful C_D to report. This is a model limitation, not an
+  omission error.
 - **Moment coefficient C_M:** computable by pressure integration over the
   surface but not yet exposed in the UI.
 - **Unsteady vortex / UVLM:** not implemented. For the current educational
@@ -195,7 +147,7 @@ without a JS runtime.
   discrete-vortex wake is the natural future extension for large-amplitude
   or maneuvering cases.
 
-## 7. Provenance & licensing
+## 6. Provenance & licensing
 
 | Component | Source | Status |
 |---|---|---|
@@ -205,29 +157,24 @@ without a JS runtime.
 | AeroPython (Barba Group) | MIT-licensed educational notebooks | Used **only as a validation cross-check**; no code copied; their published result reproduced independently |
 | Theodorsen C(k) | NACA Report 496 (1935) | Reimplemented; Bessel series from A&S (public-domain formulas) |
 | Wagner w(s) | Wagner (1925); R.T. Jones (1938) | Approximation implemented directly (published constants) |
-| Numerical lifting-line | Prandtl (1918–19); Anderson ch. 5; Katz & Plotkin ch. 12 | Reimplemented from the published equations; original TS code; validated against the exact elliptical solution |
 | scipy | BSD-3 | Dev-only validation harness (optional dependency) |
 
 No external solver code was pasted into the project. Every algorithm is
 implemented in original TypeScript, and the validation harness reproduces the
 published reference results independently.
 
-## 8. Reproducibility
+## 7. Reproducibility
 
-1. `python3 scripts/validate_aero.py` — full 66-check validation (scipy
+1. `python3 scripts/validate_aero.py` — full 43-check validation (scipy
    optional; skip messages appear if absent).
 2. `npm run web` — run the app; the Aero Lab tab exercises every module.
-3. The Bessel series, influence coefficients, Fourier lifting-line system,
-   and transform identities are written out explicitly in the code headers
-   so each can be verified by hand.
+3. The Bessel series, influence coefficients, and transform identities are
+   written out explicitly in the code headers so each can be verified by hand.
 
-## 9. Future improvements (ranked)
+## 8. Future improvements (ranked)
 
 1. **Linear-strength (Hess–Smith) panels** — removes the ~10% CL
    overprediction (P0 physics-accuracy).
-2. **Vortex Lattice Method (VLM, Level 3)** — multiple lifting surfaces,
-   sweep, dihedral, tail interference; the natural extension of the
-   lifting-line module.
-3. **C_M and pressure integration over the surface** — small, well-defined.
-4. **Küssner gust response** — same transform machinery as Wagner.
-5. **Time-domain discrete-vortex wake** — large-amplitude / maneuver case.
+2. **C_M and pressure integration over the surface** — small, well-defined.
+3. **Küssner gust response** — same transform machinery as Wagner.
+4. **Time-domain discrete-vortex wake** — large-amplitude / maneuver case.

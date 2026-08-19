@@ -61,29 +61,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="design"
-        options={{
-          title: 'Design',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="compass-rose" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="company"
         options={{
           title: 'Company',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="office-building" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="phone"
-        options={{
-          title: 'Phone',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="qrcode-scan" size={size} color={color} />
           ),
         }}
       />
