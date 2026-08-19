@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isValidReachableUrl, resolveReachableUrl } from '@/services/reachable-url';
+import { buildLanUrl, isValidReachableUrl, resolveReachableUrl } from '@/services/reachable-url';
 
 describe('isValidReachableUrl', () => {
   it('accepts real https/http hosts', () => {
@@ -44,5 +44,19 @@ describe('resolveReachableUrl', () => {
     expect(resolveReachableUrl({ origin: 'http://localhost:8081' })).toBeNull();
     expect(resolveReachableUrl({ origin: 'http://127.0.0.1:8081', hostUri: 'localhost:8081' })).toBeNull();
     expect(resolveReachableUrl({})).toBeNull();
+  });
+});
+
+describe('buildLanUrl', () => {
+  it('builds a URL from a LAN IP and the current window port', () => {
+    // In Node test env, window is undefined so port defaults to 8081
+    expect(buildLanUrl('192.168.1.50')).toBe('http://192.168.1.50:8081');
+  });
+
+  it('strips port when none is available', () => {
+    // The function uses window.location.port; in Node it is empty string
+    const url = buildLanUrl('10.0.0.1');
+    expect(url).toMatch(/^http:\/\/10\.0\.0\.1/);
+    expect(isValidReachableUrl(url)).toBe(true);
   });
 });
