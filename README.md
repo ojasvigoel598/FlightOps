@@ -142,6 +142,8 @@ Highlights — all passing:
 
 Known, documented limitation: the constant-strength panel formulation overpredicts CL by ~10% vs thin-airfoil theory (why production codes use linear-strength panels) — this is stated in the code and tests rather than hidden.
 
+For the full theory, equations and provenance of every aero algorithm (who published what, what was reimplemented vs adapted, exact identities, licensing), see **[docs/AERO_REFERENCE.md](./docs/AERO_REFERENCE.md)**.
+
 ---
 
 ## 🛠️ Technology
