@@ -1,9 +1,9 @@
 // @ts-nocheck
-import { AppConfig } from './types';
+import { OnSpaceConfig } from './types';
 
 class ConfigManager {
   private static instance: ConfigManager;
-  private config: AppConfig | null = null;
+  private config: OnSpaceConfig | null = null;
 
   private constructor() {}
 
@@ -14,7 +14,7 @@ class ConfigManager {
     return ConfigManager.instance;
   }
 
-  public initialize(config: AppConfig) {
+  public initialize(config: OnSpaceConfig) {
     if (this.config) {
       console.warn('[Template:Config] Configuration already set, updating...');
     }
@@ -22,14 +22,14 @@ class ConfigManager {
     this.config = { ...config };
   }
 
-  public getConfig(): AppConfig {
+  public getConfig(): OnSpaceConfig {
     if (!this.config) {
       this.config = this.createDefaultConfig();
     }
     return { ...this.config };
   }
 
-  private createDefaultConfig(): AppConfig {
+  private createDefaultConfig(): OnSpaceConfig {
     const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -72,7 +72,7 @@ class ConfigManager {
     return this.getConfig().supabase;
   }
 
-  public updateConfig(updates: Partial<AppConfig>) {
+  public updateConfig(updates: Partial<OnSpaceConfig>) {
     const config = this.getConfig();
     this.config = { ...config, ...updates };
   }
@@ -91,7 +91,7 @@ interface CreateConfigOptions {
   };
 }
 
-export const createConfig = (options: CreateConfigOptions = {}): AppConfig => {
+export const createConfig = (options: CreateConfigOptions = {}): OnSpaceConfig => {
   let authConfig;
   if (options.auth === false) {
     authConfig = false;
