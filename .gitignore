@@ -43,3 +43,6 @@ app-example
 # Python
 __pycache__/
 *.pyc
+
+# local reference material (copyrighted books must never be committed)
+*.pdf
