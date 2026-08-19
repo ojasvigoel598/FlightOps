@@ -9,6 +9,9 @@ export { Badge } from './ui/Badge';
 export { Screen } from './layout/Screen';
 export { ScreenHeader } from './layout/ScreenHeader';
 
+export { AeroChart } from './feature/AeroChart';
+export type { AeroSeries } from './feature/AeroChart';
+
 export { ContractCard } from './feature/ContractCard';
 export { PartSelector } from './feature/PartSelector';
 export type { PartOption } from './feature/PartSelector';
