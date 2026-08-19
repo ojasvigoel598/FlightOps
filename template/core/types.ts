@@ -31,7 +31,7 @@ export interface ModuleConfig {
 }
 
 // Main configuration interface
-export interface AppConfig extends ModuleConfig {
+export interface OnSpaceConfig extends ModuleConfig {
   supabase: SupabaseConfig;
 }
 
@@ -39,11 +39,11 @@ export interface AppConfig extends ModuleConfig {
 export interface SDKState {
   initialized: boolean;
   enabledModules: string[];
-  config: AppConfig;
+  config: OnSpaceConfig;
 }
 
 // Error type
-export interface AppError {
+export interface OnSpaceError {
   code: string;
   message: string;
   module?: string;
