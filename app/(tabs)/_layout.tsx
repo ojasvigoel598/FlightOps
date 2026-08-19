@@ -61,6 +61,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="design"
+        options={{
+          title: 'Game',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="rocket-launch" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="company"
         options={{
           title: 'Company',
