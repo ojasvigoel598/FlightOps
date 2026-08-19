@@ -263,6 +263,140 @@ def thin_airfoil_zero_lift_angle(m, p):
 
 
 # ---------------------------------------------------------------------------
+# Port of services/aero/unsteady.ts
+# ---------------------------------------------------------------------------
+
+try:
+    from scipy.special import hankel2 as _scipy_hankel2
+    from scipy.integrate import quad as _scipy_quad
+
+    HAVE_SCIPY = True
+except ImportError:
+    HAVE_SCIPY = False
+
+EULER_GAMMA = 0.5772156649015329
+
+
+def _harmonic(n):
+    h = 0.0
+    for i in range(1, n + 1):
+        h += 1.0 / i
+    return h
+
+
+def bessel_j0(x):
+    """Port of besselJ0: J0 series (A&S 9.1.10)."""
+    h2 = 0.25 * x * x
+    s = 0.0
+    term = 1.0
+    for k in range(200):
+        s += term
+        term *= -h2 / ((k + 1) * (k + 1))
+        if abs(term) < 1e-18 * abs(s) + 1e-300:
+            break
+    return s
+
+
+def bessel_j1(x):
+    """Port of besselJ1: J1 series."""
+    half = 0.5 * x
+    h2 = half * half
+    s = 0.0
+    term = 1.0
+    for k in range(200):
+        s += term
+        term *= -h2 / ((k + 1) * (k + 2))
+        if abs(term) < 1e-18 * abs(s) + 1e-300:
+            break
+    return half * s
+
+
+def bessel_y0(x):
+    """Port of besselY0: Y0 series (A&S 9.1.11)."""
+    half = 0.5 * x
+    h2 = half * half
+    ln = math.log(half)
+    s = 0.0
+    term = h2
+    for k in range(1, 200):
+        s += term * _harmonic(k)
+        term *= -h2 / ((k + 1) * (k + 1))
+        if abs(term * _harmonic(k + 1)) < 1e-18 * (abs(s) + 1.0) + 1e-300:
+            break
+    return (2.0 / math.pi) * ((ln + EULER_GAMMA) * bessel_j0(x) + s)
+
+
+def bessel_y1(x):
+    """Port of besselY1: Y1 series."""
+    half = 0.5 * x
+    h2 = half * half
+    ln = math.log(half)
+    s = 0.0
+    term = half
+    for k in range(200):
+        s += term * (_harmonic(k) + _harmonic(k + 1))
+        term *= -h2 / ((k + 1) * (k + 2))
+        if (
+            abs(term * (_harmonic(k + 1) + _harmonic(k + 2)))
+            < 1e-18 * (abs(s) + 1.0) + 1e-300
+        ):
+            break
+    return (2.0 / math.pi) * ((ln + EULER_GAMMA) * bessel_j1(x) - 1.0 / x - 0.5 * s)
+
+
+def hankel2_series(n, x):
+    """Port of hankel2: Hn^(2) = Jn - i*Yn."""
+    if n == 0:
+        return complex(bessel_j0(x), -bessel_y0(x))
+    return complex(bessel_j1(x), -bessel_y1(x))
+
+
+def theodorsen_series(k):
+    """Port of theodorsen: C(k) = H1/(H1 + i*H0)."""
+    h1 = hankel2_series(1, k)
+    h0 = hankel2_series(0, k)
+    # i*H0 = { re: -H0.im, im: H0.re }
+    den = complex(h1.real - h0.imag, h1.imag + h0.real)
+    return h1 / den
+
+
+def wagner_jones(s):
+    """Port of wagnerJones: R.T. Jones two-exponential approximation."""
+    return 1.0 - 0.165 * math.exp(-0.0455 * s) - 0.335 * math.exp(-0.3 * s)
+
+
+def theodorsen_scipy(k):
+    """Reference: Theodorsen's function from scipy's Hankel functions."""
+    h1 = _scipy_hankel2(1, k)
+    h0 = _scipy_hankel2(0, k)
+    return h1 / (h1 + 1j * h0)
+
+
+def wagner_exact(s):
+    """Exact Wagner function from Theodorsen's C(k) (inverse transform).
+
+    The Fourier pair is F{w'}(k) = C(k) - w(0+), and the high-frequency
+    limit C(inf) = 1/2 forces w(0+) = 1/2. Integrating the inversion of
+    C(k) - 1/2 from 0 to s:
+
+        w(s) = 1/2 + (1/pi) * int_0^inf [(Re C - 1/2) sin(ks) + Im C (cos(ks) - 1)]/k dk
+
+    Self-consistency (checked in main()): w(0) = 1/2, w(inf) = 1, using the
+    identity int_0^inf Im C(k)/k dk = -pi/4.
+    """
+
+    def integrand(k):
+        c = theodorsen_scipy(k)
+        return (
+            (c.real - 0.5) * math.sin(k * s)
+            + c.imag * (math.cos(k * s) - 1.0)
+        ) / k
+
+    val, _ = _scipy_quad(integrand, 0.0, 300.0, limit=500, points=[0.0])
+    return 0.5 + val / math.pi
+
+
+# ---------------------------------------------------------------------------
 # Checks
 # ---------------------------------------------------------------------------
 
@@ -368,6 +502,48 @@ def main():
         for i in range(len(xcc))
     )
     ok &= approx(sigma_err, 0.0, 0.05, "cylinder source sigma = -2 cos(theta)")
+
+    # --- Unsteady aerodynamics: Theodorsen C(k) ---
+    if HAVE_SCIPY:
+        for k in [0.01, 0.1, 0.3, 0.5, 1.0, 2.0, 5.0]:
+            c_ref = theodorsen_scipy(k)
+            c_ser = theodorsen_series(k)
+            ok &= approx(
+                abs(c_ser - c_ref),
+                0.0,
+                1e-10,
+                f"C(k=%.2f) vs scipy Hankel functions" % k,
+            )
+    else:
+        print("[SKIP] Theodorsen vs scipy (scipy not installed)")
+
+    # |C(k)-1| ~ k*|ln k| near k = 0, so use a small enough k for the limit.
+    c = theodorsen_series(1e-5)
+    ok &= approx(abs(c - 1.0), 0.0, 1e-3, "C(1e-5) -> 1 (quasi-steady limit)")
+    ok &= approx(abs(theodorsen_series(10.0)) - 0.5, 0.0, 3e-2, "|C(10)| -> 1/2 (infinite-frequency limit)")
+
+    # --- Unsteady aerodynamics: Wagner w(s) ---
+    ok &= approx(wagner_jones(0.0), 0.5, 1e-12, "w(0) = 1/2 (Jones approximation)")
+    ok &= approx(wagner_jones(100.0), 1.0, 1e-2, "w(100) -> 1")
+    ss = [i * 0.25 for i in range(81)]
+    ws = [wagner_jones(s) for s in ss]
+    monotonic = all(ws[i + 1] >= ws[i] for i in range(len(ws) - 1))
+    ok &= approx(0.0 if monotonic else 1.0, 0.0, 0.0, "w(s) monotonic increasing")
+
+    # Jones approximation vs the exact Wagner function (numerically inverted
+    # from the exact C(k)); the two should agree to ~1-2% away from s = 0.
+    if HAVE_SCIPY:
+        ok &= approx(wagner_exact(0.0), 0.5, 2e-2, "w_exact(0) = 1/2 (transform self-check)")
+        ok &= approx(wagner_exact(30.0), 1.0, 5e-2, "w_exact(30) -> 1 (transform self-check)")
+        for s in [0.1, 0.5, 1.0, 2.0, 5.0]:
+            ok &= approx(
+                wagner_jones(s),
+                wagner_exact(s),
+                3e-2,
+                f"w(s=%.1f) Jones vs exact" % s,
+            )
+    else:
+        print("[SKIP] Wagner exact-transform checks (scipy not installed)")
 
     print()
     print("RESULT:", "ALL PASS" if ok else "FAILURES PRESENT")
