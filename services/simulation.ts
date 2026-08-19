@@ -35,7 +35,8 @@ export function computeVehicleStats(
   // Fuel burn scales with engine, drag and weight.
   const fuelBurnPerKm = BURN_BASE * e.burn * w.drag * (weightKg / 8000);
   const rangeKm = fuelWeight / fuelBurnPerKm;
-  const reservePct = ((rangeKm - distanceKm) / distanceKm) * 100;
+  // Guard against a zero-distance contract producing NaN/Infinity reserve.
+  const reservePct = distanceKm > 0 ? ((rangeKm - distanceKm) / distanceKm) * 100 : 0;
   const lowSpeed = w.lowSpeed;
 
   const feasible = rangeKm > distanceKm;
