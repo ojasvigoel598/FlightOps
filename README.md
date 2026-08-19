@@ -1,75 +1,198 @@
-# Welcome to Flight OPS
+# ✈️ Flight Ops
 
-it's built with React Native and Expo, demonstrates this capability—integrating popular third-party libraries to deliver seamless cross-platform performance across iOS, Android, and Web environments.
+**Run a small aircraft company: design planes in the hangar, take cargo contracts, fly risky missions, and open the Aero Lab to solve real potential-flow aerodynamics live on your phone.**
 
-## Getting Started
+Flight Ops is a cross-platform game built with React Native + Expo. There's no backend and no account — the whole game runs on your device. It also ships a real computational-aerodynamics workbench (panel method, Cp, CL, Theodorsen, Wagner) as an in-game tab.
 
-### 1. Install Dependencies
+---
+
+## 🎮 Play the Game
+
+> ⚠️ There is **no hosted live demo yet** — nothing is deployed. The two fastest ways to try it:
+
+### 1. Web — easiest, works on any desktop or mobile browser
 
 ```bash
 npm install
-# or
-yarn install
+npm run web
 ```
 
-### 2. Start the Project
+A browser tab opens at `http://localhost:8081` with the full game.
 
-- Start the development server (choose your platform):
+### 2. Phone — with the Expo Go app
+
+1. Install **Expo Go** from the App Store (iOS) or Play Store (Android).
+2. Run `npx expo start` in the project folder.
+3. Scan the QR code shown in the terminal with your phone (same Wi-Fi network).
+
+**Works on:** iOS · Android · Web (desktop & mobile browsers).
+
+---
+
+## 📸 Demo
+
+*In-app artwork used by the current build (live UI screenshots are coming — the Aero Lab was added most recently).*
+
+| | |
+|---|---|
+| ![Hangar artwork shown on the aircraft-design screen](assets/images/hangar-hero.png) | ![Mission-briefing artwork shown in mission control](assets/images/mission-hud.png) |
+
+---
+
+## 🕹️ How to Play
+
+**The loop:** pick a contract → build an aircraft for it → fly the mission → get paid (or not) → buy upgrades → repeat with harder jobs.
+
+1. **Contracts** tab — choose a cargo job: payload (kg), distance (km), reward (£M) and difficulty. Hit the refresh icon for new jobs.
+2. **Hangar** tab — assemble your aircraft from wings, engine and fuel. The sim instantly recomputes **build cost, fuel range, safety, reliability and reserve**. Launch only when you can afford the build cost — you *can* launch a vehicle that can't make the distance, but the mission briefing will warn you.
+3. **Mission** — tap **Begin Mission**, then **Advance Flight** to fly in stages. Every stage burns fuel and rolls for random events (weather, faults, surprises) weighted by your aircraft's reliability. Event cards give you choices that change **fuel, airframe integrity and engine health**.
+4. **Result** — deliver the payload for the full reward, or lose it. **Net = reward − build cost.** Missions earn XP toward your company.
+
+**You lose a mission if** fuel runs out, integrity hits zero, the engine fails, or you abort. Watch for the chain reaction: damaged engines burn more fuel.
+
+**Company** tab — spend earnings on upgrades. The **AI co-pilot** upgrade unlocks hints on event cards.
+
+---
+
+## ✨ Features
+
+- 🛠️ **Design-to-mission loop** — parts change real flight physics (range, burn rate, safety, reliability).
+- 🎲 **Deterministic, seed-based missions** — every contract's events replay identically; no hidden randomness surprises.
+- 🧑‍✈️ **Choice-driven flight events** with meaningful trade-offs.
+- 📈 **Aero Lab tab** — a real potential-flow workbench computed live on device:
+  - NACA 4-digit airfoil geometry (type any code, e.g. `2412`)
+  - Source + vortex **panel method** → pressure coefficient **Cp** distribution
+  - **CL vs angle of attack** against thin-airfoil theory (2π slope)
+  - **Theodorsen's** lift-deficiency function |C(k)| and **Wagner's** indicial response w(s)
+  - All of it cross-validated against analytical solutions and `scipy` — see [Aerodynamics validation](#aerodynamics-validation).
+
+---
+
+## 🧠 How It Works
+
+```
+Contracts ──▶ Hangar (design) ──▶ Mission (6 flight stages + events) ──▶ Result (net £, XP)
+                    │                                                        │
+                    ▼                                                        ▼
+         services/simulation.ts                              Company upgrades (money/XP)
+         (range, burn, safety, reliability)
+```
+
+- **Game state** lives in a React context (`contexts/GameContext.tsx`) and persists locally with AsyncStorage — fully offline.
+- **Mission runtime** (`hooks/useMission.tsx`) is a deterministic state machine driven by a seeded PRNG (`services/rng.ts`).
+- **Aerodynamics** (`services/aero/`) is pure, dependency-free TypeScript: NACA geometry → panel method → Cp/CL, plus unsteady Theodorsen/Wagner. The same mathematics is ported to Python in `scripts/validate_aero.py` and checked against 43 benchmarks.
+
+---
+
+## 🚀 Run Locally
+
+**Prerequisites:** Node.js 18+ (Node 20 LTS recommended) and npm.
 
 ```bash
-npm run start         # Start Expo development server
-npm run android       # Launch Android emulator
-npm run ios           # Launch iOS simulator
-npm run web           # Start the web version
+# 1. Install dependencies
+npm install
+
+# 2. Start the dev server (pick one)
+npm run web        # web browser — fastest way to try it
+npm run start      # Expo dev server (press w / a / i, or scan QR with Expo Go)
+npm run android    # Android emulator
+npm run ios        # iOS simulator (macOS only)
+
+# 3. Lint
+npm run lint
 ```
 
-- Reset the project (clear cache, etc.):
+To clear the starter demo state and reset the project:
 
 ```bash
 npm run reset-project
 ```
 
-### 3. Lint the Code
+---
 
-```bash
-npm run lint
-```
+## 📱 Mobile Support
 
-## Main Dependencies
+- **iOS** — Expo Go (App Store) or a native build from this repo.
+- **Android** — Expo Go (Play Store) or a native build.
+- **Web** — static output via Expo's web bundler; runs in any modern browser.
 
-- React Native: 0.79.4
-- React: 19.0.0
-- Expo: ~53.0.12
-- Expo Router: ~5.1.0
-- Supabase: ^2.50.0
-- Other commonly used libraries:  
-  - @expo/vector-icons  
-  - react-native-paper  
-  - react-native-calendars  
-  - lottie-react-native  
-  - react-native-webview  
-  - and more
-
-For a full list of dependencies, see [package.json](./package.json).
-
-## Development Tools
-
-- TypeScript: ~5.8.3
-- ESLint: ^9.25.0
-- @babel/core: ^7.25.2
-
-## Contributing
-
-1. Fork this repository
-2. Create a new branch (`git checkout -b main`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
-
-## License
-ongoing project so forgive me if bugs or msitakes 
-This project is private ("private": true). For collaboration inquiries, please contact the author.
+Everything is computed on-device, so it works fully offline.
 
 ---
 
-Feel free to add project screenshots, API documentation, feature descriptions, or any other information as needed.
+## 🧪 Aerodynamics validation
+
+`scripts/validate_aero.py` ports the TypeScript aerodynamics to Python and checks **43 quantitative benchmarks** (no Python packages required; the `scipy` cross-checks are skipped gracefully if it's missing):
+
+```bash
+python3 scripts/validate_aero.py
+```
+
+Highlights — all passing:
+
+| Check | Reference |
+|---|---|
+| Circular-cylinder flow (min Cp = −3, source σ = −2cosθ) | exact potential-flow solution |
+| NACA 0012 CL(0°) = 0, anti-symmetric ±5° | symmetry |
+| CL(5°) ≈ thin-airfoil 2π slope | thin-airfoil theory |
+| NACA 2412 zero-lift angle | thin-airfoil theory |
+| Kutta condition Vt(TE) continuity | ~1e-16 residual |
+| Theodorsen C(k) vs `scipy.special.hankel2` | ~1e-16 across k |
+| Wagner w(s) vs exact inverse transform of C(k) | within ~0.6% |
+
+Known, documented limitation: the constant-strength panel formulation overpredicts CL by ~10% vs thin-airfoil theory (why production codes use linear-strength panels) — this is stated in the code and tests rather than hidden.
+
+---
+
+## 🛠️ Technology
+
+| | |
+|---|---|
+| Framework | React Native 0.79 · React 19 · Expo SDK 53 |
+| Navigation | Expo Router 5 (file-based) |
+| Language | TypeScript ~5.8 (strict) |
+| State | React context + AsyncStorage (local persistence) |
+| Charts | `react-native-svg` (hand-rolled, no chart dependency) |
+| Other key deps | `@expo/vector-icons`, `expo-image`, `@react-native-community/slider`, `lottie-react-native` |
+| Dev | ESLint 9 + `eslint-config-expo`, Babel, Python 3 (validation harness) |
+
+Full list: [`package.json`](./package.json).
+
+---
+
+## 📁 Project Structure
+
+```
+app/                # Expo Router screens
+  (tabs)/           #   Hangar · Contracts · Company · Aero Lab
+  mission.tsx       #   in-flight mission control
+  result.tsx        #   mission outcome / debrief
+components/         # UI + SVG chart components
+services/
+  aero/             # airfoil.ts · panel.ts · unsteady.ts (pure TS math)
+  simulation.ts     # vehicle stats (range, burn, safety, reliability)
+  contracts.ts      # contract generation
+  events.ts         # flight event definitions & outcomes
+  rng.ts            # seeded PRNG
+hooks/              # useGame · useMission
+contexts/           # GameContext (persisted game state)
+scripts/
+  validate_aero.py  # 43-check aerodynamics validation harness
+```
+
+---
+
+## 🤝 Contributing
+
+1. Fork this repository.
+2. Create a feature branch: `git checkout -b feature/my-change`.
+3. Make your change — **commit small, logical units as you go** (this repo's convention).
+4. Push and open a Pull Request.
+
+Before opening a PR, make sure `npm run lint` passes and, if you touched `services/aero/`, `python3 scripts/validate_aero.py` still reports **ALL PASS**.
+
+---
+
+## 📄 License
+
+This project is currently **private** (`"private": true` in `package.json`) with no license file — no rights are granted for reuse. For collaboration inquiries, please contact the author.
