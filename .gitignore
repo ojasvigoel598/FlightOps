@@ -31,9 +31,18 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
 
 app-example
+
+# Python
+__pycache__/
+*.pyc
+
+# local reference material (copyrighted books must never be committed)
+*.pdf
