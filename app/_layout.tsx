@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AlertProvider } from '@/template';
 import { GameProvider } from '@/contexts/GameContext';
+import { ModeProvider } from '@/contexts/ModeContext';
 import { colors } from '@/constants/theme';
 import { registerServiceWorker, setupWebHead } from '@/services/pwa';
 
@@ -16,6 +17,7 @@ export default function RootLayout() {
   return (
     <AlertProvider>
       <SafeAreaProvider>
+        <ModeProvider>
         <GameProvider>
           <StatusBar style="light" />
           <Stack
@@ -29,6 +31,7 @@ export default function RootLayout() {
             <Stack.Screen name="result" options={{ gestureEnabled: false }} />
           </Stack>
         </GameProvider>
+        </ModeProvider>
       </SafeAreaProvider>
     </AlertProvider>
   );
