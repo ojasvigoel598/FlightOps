@@ -57,10 +57,21 @@ export interface AirfoilSpec {
 }
 
 export const AIRFOILS: AirfoilSpec[] = [
+  // Symmetric
+  { id: 'naca0006', label: 'NACA 0006', camberPct: 0, camberPosPct: 0, thicknessPct: 6 },
   { id: 'naca0012', label: 'NACA 0012', camberPct: 0, camberPosPct: 0, thicknessPct: 12 },
+  { id: 'naca0018', label: 'NACA 0018', camberPct: 0, camberPosPct: 0, thicknessPct: 18 },
+  // General aviation workhorses (4-digit)
   { id: 'naca2412', label: 'NACA 2412', camberPct: 2, camberPosPct: 40, thicknessPct: 12 },
   { id: 'naca4412', label: 'NACA 4412', camberPct: 4, camberPosPct: 40, thicknessPct: 12 },
+  { id: 'naca2421', label: 'NACA 2421', camberPct: 2, camberPosPct: 40, thicknessPct: 21 },
+  { id: 'naca6412', label: 'NACA 6412', camberPct: 6, camberPosPct: 40, thicknessPct: 12 },
+  // Low-speed / high-lift (4-digit)
   { id: 'naca23012', label: 'NACA 23012', camberPct: 1.8, camberPosPct: 15, thicknessPct: 12 },
+  { id: 'naca4421', label: 'NACA 4421', camberPct: 4, camberPosPct: 40, thicknessPct: 21 },
+  // Thicker sections (structural / agricultural / UAV)
+  { id: 'naca0025', label: 'NACA 0025', camberPct: 0, camberPosPct: 0, thicknessPct: 25 },
+  { id: 'naca4418', label: 'NACA 4418', camberPct: 4, camberPosPct: 40, thicknessPct: 18 },
 ];
 
 export interface PanelPoint {
@@ -105,10 +116,18 @@ export interface AeroAnalysis {
   cl: number;
   /** lift coefficient (thin-airfoil theory), dimensionless */
   clThin: number;
+  /** Prandtl-Glauert compressibility-corrected CL, dimensionless */
+  clCompressed: number;
   /** drag coefficient (parabolic polar), dimensionless */
   cd: number;
+  /** Prandtl-Glauert compressibility-corrected CD, dimensionless */
+  cdCompressed: number;
+  /** pitching moment coefficient about the quarter-chord (thin-airfoil theory), dimensionless */
+  cm: number;
   /** zero-lift angle, degrees */
   alphaL0Deg: number;
+  /** Prandtl-Glauert compressibility factor β = sqrt(1 − M²), dimensionless */
+  prandtlGlauertBeta: number;
   /** section lift per unit span, N/m */
   liftPerSpan: number;
   /** section drag per unit span, N/m */
@@ -619,6 +638,50 @@ function thinAirfoilZeroLift(geo: NacaGeometry): number {
   return ((a0 - a1 / 2) * 180) / PI;
 }
 
+/**
+ * Prandtl-Glauert compressibility correction factor β = √(1 − M²).
+ * CL and CD scale as CL_M = CL_0 / β, CD_M = CD_0 / β in subsonic
+ * linearised flow. Valid for M < ~0.7 (Anderson, Fundamentals of
+ * Aerodynamics, §10.2). Returns 1 for M = 0.
+ */
+export function prandtlGlauertBeta(mach: number): number {
+  assertFinite('mach', mach);
+  if (mach < 0) throw new Error(`aerodynamics: Mach must be ≥ 0, got ${mach}`);
+  if (mach >= 1) throw new Error(`aerodynamics: Prandtl-Glauert valid only for M < 1, got ${mach}`);
+  const beta = Math.sqrt(1 - mach * mach);
+  return beta;
+}
+
+/**
+ * Pitching moment coefficient about the quarter-chord (thin-airfoil theory):
+ *   Cm_{c/4} = π/4 · (A2 − A1),
+ * where A0, A1, A2 are the Fourier coefficients of the camber-line slope:
+ *   A0 = (1/π)∫₀^π (dz/dx) dθ,
+ *   A_n = (2/π)∫₀^π (dz/dx) cos(nθ) dθ,
+ * with x = (1 − cosθ)/2.  For a flat plate Cm = 0; for cambered sections
+ * Cm is nonzero and negative (nose-down), independent of α (Anderson §4.8).
+ */
+export function pitchingMomentCoeff(geo: NacaGeometry): number {
+  const steps = 200;
+  let a0 = 0;
+  let a1 = 0;
+  let a2 = 0;
+  const dTheta = PI / steps;
+  for (let k = 0; k <= steps; k += 1) {
+    const theta = k * dTheta;
+    const x = 0.5 * (1 - Math.cos(theta));
+    const slope = geo.camberSlope(x);
+    const w = k === 0 || k === steps ? 0.5 : 1;
+    a0 += w * slope;
+    a1 += w * slope * Math.cos(theta);
+    a2 += w * slope * Math.cos(2 * theta);
+  }
+  a0 *= dTheta / PI;
+  a1 *= (2 * dTheta) / PI;
+  a2 *= (2 * dTheta) / PI;
+  return (PI / 4) * (a2 - a1);
+}
+
 /** Parabolic drag polar: CD = cd0 + k·CL². */
 export function dragPolar(cd0: number, k: number, cl: number): number {
   assertPositive('cd0', cd0);
@@ -698,17 +761,31 @@ export function analyzeFlight(input: FlightConditionInput): AeroAnalysis {
     atmosphere.viscosityPaS,
   );
 
-  if (mach >= 0.3) {
-    warnings.push('M ≥ 0.3: incompressible potential-flow model; compressibility effects are neglected.');
+  if (mach >= 0.3 && mach < 0.7) {
+    warnings.push('M ≥ 0.3: Prandtl–Glauert correction applied (extends linear validity to ~0.7).');
+  } else if (mach >= 0.7) {
+    warnings.push('M ≥ 0.7: Prandtl–Glauert correction applied but linearised theory is suspect near M ≈ 1.');
+  }
+  if (mach >= 1) {
+    throw new Error('aerodynamics: supersonic flow outside linearised subsonic model range');
   }
 
   const lift = vortexLatticeLift(airfoil, input.angleOfAttackDeg, input.panels);
   const k = inducedDragFactor(input.oswaldE, input.aspectRatio, input.sectionK);
   const cd = dragPolar(input.cd0, k, lift.clVlm);
 
+  // Prandtl–Glauert compressibility correction: CL_M = CL_0 / β, CD_M = CD_0 / β.
+  const beta = prandtlGlauertBeta(mach);
+  const clCompressed = lift.clVlm / beta;
+  const cdCompressed = cd / beta;
+
+  // Pitching moment about the quarter-chord from thin-airfoil Fourier coefficients.
+  const geo = nacaGeometry(airfoil);
+  const cm = pitchingMomentCoeff(geo);
+
   // Source panels cannot generate circulation; the pressure distribution is
   // therefore the non-lifting solution evaluated at α = 0°.
-  const cp = sourcePanelPressure(nacaGeometry(airfoil).points(input.panels), 0);
+  const cp = sourcePanelPressure(geo.points(input.panels), 0);
 
   let cpMin = Infinity;
   let cpMax = -Infinity;
@@ -728,9 +805,13 @@ export function analyzeFlight(input: FlightConditionInput): AeroAnalysis {
     alphaL0Deg: lift.alphaL0Deg,
     cl: lift.clVlm,
     clThin: lift.clThin,
+    clCompressed,
     cd,
-    liftPerSpan: qPa * input.chordM * lift.clVlm,
-    dragPerSpan: qPa * input.chordM * cd,
+    cdCompressed,
+    cm,
+    prandtlGlauertBeta: beta,
+    liftPerSpan: qPa * input.chordM * clCompressed,
+    dragPerSpan: qPa * input.chordM * cdCompressed,
     cp,
     cpMin,
     cpMax,

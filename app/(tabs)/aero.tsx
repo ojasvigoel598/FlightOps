@@ -173,19 +173,23 @@ export default function AeroScreen() {
 
           <Panel
             title="Aerodynamic coefficients"
-            subtitle="Lift: 2D vortex lattice; drag: parabolic polar CD = cd0 + k·CL²."
+            subtitle="Lift: 2D vortex lattice + Prandtl–Glauert; drag: parabolic polar."
           >
             <View style={styles.statGrid}>
-              <Stat label="CL (vortex lattice)" value={fmt(analysis.cl, 3)} unit="—" />
-              <Stat label="CL (thin airfoil)" value={fmt(analysis.clThin, 3)} unit="—" highlight />
+              <Stat label="CL (VLM incompressible)" value={fmt(analysis.cl, 3)} unit="—" />
+              <Stat label="CL (Prandtl–Glauert)" value={fmt(analysis.clCompressed, 3)} unit="—" highlight />
+              <Stat label="CL (thin airfoil)" value={fmt(analysis.clThin, 3)} unit="—" />
+              <Stat label="CD (incompressible)" value={fmt(analysis.cd, 4)} unit="—" />
+              <Stat label="CD (Prandtl–Glauert)" value={fmt(analysis.cdCompressed, 4)} unit="—" highlight />
+              <Stat label="Cm (c/4)" value={fmt(analysis.cm, 4)} unit="—" />
               <Stat label="α_L0" value={fmt(analysis.alphaL0Deg, 2)} unit="deg" />
-              <Stat label="CD" value={fmt(analysis.cd, 4)} unit="—" />
+              <Stat label="β = √(1−M²)" value={fmt(analysis.prandtlGlauertBeta, 4)} unit="—" />
               <Stat label="Lift / span" value={fmt(analysis.liftPerSpan, 0)} unit="N/m" />
               <Stat label="Drag / span" value={fmt(analysis.dragPerSpan, 0)} unit="N/m" />
             </View>
             <Text style={styles.assumption}>
-              cd0 = 0.010 (section), k = 0.006, 2D section (AR = ∞). Thin-airfoil CL is
-              2π(α − α_L0).
+              cd0 = 0.010, k = 0.006, 2D section (AR = inf). Prandtl-Glauert: CL_M = CL_0/beta,
+              CD_M = CD_0/beta, valid M below ~0.7. Cm from thin-airfoil Fourier coefficients.
             </Text>
           </Panel>
 
@@ -221,11 +225,12 @@ export default function AeroScreen() {
       <Panel title="Model & units" tone="raised">
         <Text style={styles.modelNote}>
           All quantities are calculated in SI units from first-principles models: ISA
-          atmosphere (0–20 km), Sutherland viscosity, incompressible potential flow
-          (source panels + 2D vortex lattice), thin-airfoil lift theory, parabolic drag
-          polar. The linear lift slope is valid for |α| ≲ 15° and M ≲ 0.3; viscous drag
-          enters only through cd0. This is an educational linear-aerodynamics tool, not a
-          flight-certification code.
+          atmosphere (0–20 km), Sutherland viscosity, potential flow (source panels + 2D
+          vortex lattice), thin-airfoil lift theory with Prandtl–Glauert compressibility
+          correction (beta = sqrt(1-M^2), valid M below ~0.7), parabolic drag polar, and pitching
+          moment from Fourier coefficients. The linear lift slope is valid for |α| ≲ 15°;
+          viscous drag enters only through cd0. This is an educational linear-aerodynamics
+          tool, not a flight-certification code.
         </Text>
       </Panel>
     </Screen>

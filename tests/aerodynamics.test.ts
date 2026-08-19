@@ -18,6 +18,8 @@ import {
   inducedDragFactor,
   machNumber,
   nacaGeometry,
+  pitchingMomentCoeff,
+  prandtlGlauertBeta,
   reynoldsNumber,
   sourcePanelPressure,
   standardAtmosphere,
@@ -160,21 +162,26 @@ describe('vortex lattice lift', () => {
     expect(lift.clThin).toBeCloseTo(thin, 4);
   });
 
+  const naca0012 = AIRFOILS.find((a) => a.id === 'naca0012')!;
+  const naca2412 = AIRFOILS.find((a) => a.id === 'naca2412')!;
+  const naca4412 = AIRFOILS.find((a) => a.id === 'naca4412')!;
+  const naca23012 = AIRFOILS.find((a) => a.id === 'naca23012')!;
+
   it('is anti-symmetric in angle of attack (flat plate)', () => {
-    const up = vortexLatticeLift(AIRFOILS[0], 5, 40);
-    const down = vortexLatticeLift(AIRFOILS[0], -5, 40);
+    const up = vortexLatticeLift(naca0012, 5, 40);
+    const down = vortexLatticeLift(naca0012, -5, 40);
     expect(up.clVlm + down.clVlm).toBeCloseTo(0, 9);
   });
 
   it('produces no lift at α = 0 for a symmetric airfoil', () => {
-    const lift = vortexLatticeLift(AIRFOILS[0], 0, 40);
+    const lift = vortexLatticeLift(naca0012, 0, 40);
     expect(lift.clVlm).toBeCloseTo(0, 12);
   });
 
   it('recovers published zero-lift angles for cambered sections', () => {
-    const a2412 = vortexLatticeLift(AIRFOILS[1], 5, 40);
-    const a4412 = vortexLatticeLift(AIRFOILS[2], 5, 40);
-    const a23012 = vortexLatticeLift(AIRFOILS[3], 5, 40);
+    const a2412 = vortexLatticeLift(naca2412, 5, 40);
+    const a4412 = vortexLatticeLift(naca4412, 5, 40);
+    const a23012 = vortexLatticeLift(naca23012, 5, 40);
     expect(a2412.alphaL0Deg).toBeGreaterThan(-2.5);
     expect(a2412.alphaL0Deg).toBeLessThan(-1.5);
     expect(a4412.alphaL0Deg).toBeGreaterThan(-4.8);
@@ -183,8 +190,8 @@ describe('vortex lattice lift', () => {
   });
 
   it('gives more lift for more camber at fixed α', () => {
-    const thin = vortexLatticeLift(AIRFOILS[0], 5, 40);
-    const cambered = vortexLatticeLift(AIRFOILS[2], 5, 40);
+    const thin = vortexLatticeLift(naca0012, 5, 40);
+    const cambered = vortexLatticeLift(naca4412, 5, 40);
     expect(cambered.clVlm).toBeGreaterThan(thin.clVlm);
   });
 
@@ -252,5 +259,91 @@ describe('analyzeFlight integration', () => {
     expect(() => analyzeFlight({ ...base, velocityMs: Number.NaN })).toThrow();
     expect(() => analyzeFlight({ ...base, altitudeM: 25_000 })).toThrow();
     expect(() => analyzeFlight({ ...base, chordM: 0 })).toThrow();
+  });
+
+  it('returns compressibility-corrected CL/CD and Prandtl-Glauert beta', () => {
+    const r = analyzeFlight(base);
+    // At M ~0.3 (3km, 100 m/s), beta < 1 so compressed > incompressible
+    expect(r.prandtlGlauertBeta).toBeGreaterThan(0.9);
+    expect(r.prandtlGlauertBeta).toBeLessThan(1);
+    expect(r.clCompressed).toBeGreaterThan(r.cl);
+    expect(r.cdCompressed).toBeGreaterThan(r.cd);
+    // The relationship holds: clCompressed * beta ~ cl
+    expect(r.clCompressed * r.prandtlGlauertBeta).toBeCloseTo(r.cl, 6);
+  });
+
+  it('applies Prandtl-Glauert correction at M > 0', () => {
+    // Sea level, 100 m/s -> M ~0.29
+    const r = analyzeFlight({ ...base, altitudeM: 0, velocityMs: 100 });
+    const beta = r.prandtlGlauertBeta;
+    expect(beta).toBeGreaterThan(0.9);
+    expect(beta).toBeLessThan(1);
+    // CL_M = CL_0 / beta => CL_M > CL_0
+    expect(r.clCompressed).toBeGreaterThan(r.cl);
+    expect(r.cdCompressed).toBeGreaterThan(r.cd);
+    // The relationship holds: clCompressed * beta ~ cl
+    expect(r.clCompressed * beta).toBeCloseTo(r.cl, 6);
+  });
+
+  it('throws on supersonic Mach', () => {
+    // Sea level, 400 m/s -> M > 1
+    expect(() => analyzeFlight({ ...base, altitudeM: 0, velocityMs: 400 })).toThrow();
+  });
+
+  it('returns non-zero pitching moment for cambered airfoil and zero for flat plate', () => {
+    const flat = analyzeFlight({ ...base, airfoilId: 'naca0012' });
+    const cambered = analyzeFlight({ ...base, airfoilId: 'naca4412' });
+    // Symmetric airfoil: Cm_{c/4} = 0
+    expect(flat.cm).toBeCloseTo(0, 4);
+    // Cambered airfoil: Cm_{c/4} < 0 (nose-down)
+    expect(cambered.cm).toBeLessThan(0);
+    // More camber -> more negative Cm
+    const moreCambered = analyzeFlight({ ...base, airfoilId: 'naca6412' });
+    expect(moreCambered.cm).toBeLessThan(cambered.cm);
+  });
+
+  it('flags Prandtl-Glauert in the warning range M >= 0.3', () => {
+    // 110 m/s sea level -> M ~0.32 > 0.3
+    const r = analyzeFlight({ ...base, altitudeM: 0, velocityMs: 110 });
+    expect(r.warnings.some((w) => w.includes('Prandtl'))).toBe(true);
+  });
+});
+
+describe('Prandtl-Glauert correction', () => {
+  it('beta(0) = 1', () => {
+    expect(prandtlGlauertBeta(0)).toBe(1);
+  });
+
+  it('beta(0.5) = sqrt(0.75)', () => {
+    expect(prandtlGlauertBeta(0.5)).toBeCloseTo(Math.sqrt(0.75), 6);
+  });
+
+  it('rejects M >= 1', () => {
+    expect(() => prandtlGlauertBeta(1)).toThrow();
+    expect(() => prandtlGlauertBeta(-0.1)).toThrow();
+  });
+});
+
+describe('Pitching moment coefficient', () => {
+  it('flat plate (NACA 0012) has Cm = 0', () => {
+    const flat = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca0012'));
+    expect(pitchingMomentCoeff(flat)).toBeCloseTo(0, 6);
+  });
+
+  it('cambered airfoil has negative Cm_{c/4}', () => {
+    const geo = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca4412'));
+    const cm = pitchingMomentCoeff(geo);
+    expect(cm).toBeLessThan(0);
+    // NACA 4412 should have Cm ~ -0.03 to -0.09 (Anderson data)
+    expect(cm).toBeGreaterThan(-0.15);
+    expect(cm).toBeLessThan(-0.01);
+  });
+
+  it('more camber gives more negative Cm', () => {
+    const geo2 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca2412'));
+    const geo4 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca4412'));
+    const geo6 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca6412'));
+    expect(pitchingMomentCoeff(geo6)).toBeLessThan(pitchingMomentCoeff(geo4));
+    expect(pitchingMomentCoeff(geo4)).toBeLessThan(pitchingMomentCoeff(geo2));
   });
 });
