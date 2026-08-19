@@ -326,13 +326,13 @@ describe('Prandtl-Glauert correction', () => {
 
 describe('Pitching moment coefficient', () => {
   it('flat plate (NACA 0012) has Cm = 0', () => {
-    const flat = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca0012'));
-    expect(pitchingMomentCoeff(flat)).toBeCloseTo(0, 6);
+    const spec = AIRFOILS.find((a) => a.id === 'naca0012')!;
+    expect(pitchingMomentCoeff(nacaGeometry(spec))).toBeCloseTo(0, 6);
   });
 
   it('cambered airfoil has negative Cm_{c/4}', () => {
-    const geo = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca4412'));
-    const cm = pitchingMomentCoeff(geo);
+    const spec = AIRFOILS.find((a) => a.id === 'naca4412')!;
+    const cm = pitchingMomentCoeff(nacaGeometry(spec));
     expect(cm).toBeLessThan(0);
     // NACA 4412 should have Cm ~ -0.03 to -0.09 (Anderson data)
     expect(cm).toBeGreaterThan(-0.15);
@@ -340,9 +340,9 @@ describe('Pitching moment coefficient', () => {
   });
 
   it('more camber gives more negative Cm', () => {
-    const geo2 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca2412'));
-    const geo4 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca4412'));
-    const geo6 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca6412'));
+    const geo2 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca2412')!);
+    const geo4 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca4412')!);
+    const geo6 = nacaGeometry(AIRFOILS.find((a) => a.id === 'naca6412')!);
     expect(pitchingMomentCoeff(geo6)).toBeLessThan(pitchingMomentCoeff(geo4));
     expect(pitchingMomentCoeff(geo4)).toBeLessThan(pitchingMomentCoeff(geo2));
   });
