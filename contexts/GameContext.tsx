@@ -113,18 +113,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [company.xp]);
 
   const purchaseUpgrade = useCallback((id: string, cost: number): boolean => {
-    let ok = false;
-    setCompany((prev) => {
-      if (prev.money < cost || prev.upgrades.includes(id)) return prev;
-      ok = true;
-      return {
-        ...prev,
-        money: Math.round((prev.money - cost) * 100) / 100,
-        upgrades: [...prev.upgrades, id],
-      };
-    });
-    return ok;
-  }, []);
+    // Validate against current state synchronously so the return value is
+    // deterministic, instead of relying on the async setState updater to
+    // set a captured flag (which can report failure on a successful buy).
+    if (company.money < cost || company.upgrades.includes(id)) return false;
+    setCompany((prev) => ({
+      ...prev,
+      money: Math.round((prev.money - cost) * 100) / 100,
+      upgrades: [...prev.upgrades, id],
+    }));
+    return true;
+  }, [company.money, company.upgrades]);
 
   const refreshContracts = useCallback(() => {
     seedRef.current += 13;
