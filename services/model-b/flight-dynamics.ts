@@ -8,7 +8,7 @@
 //
 // All quantities SI. Time-stepping is fixed dt for determinism.
 
-import { standardAtm } from '../aerodynamics';
+import { standardAtmosphere } from '../aerodynamics';
 
 // ---------------------------------------------------------------------------
 // Aircraft state
@@ -106,12 +106,12 @@ export function createInitialState(altitudeM = 0, airspeedMs = 0, fuelKg = 100):
 // ---------------------------------------------------------------------------
 
 function airDensity(altM: number): number {
-  const atm = standardAtm(altM);
+  const atm = standardAtmosphere(altM);
   return atm.densityKgM3;
 }
 
 function speedOfSound(altM: number): number {
-  const atm = standardAtm(altM);
+  const atm = standardAtmosphere(altM);
   return atm.speedOfSoundMs;
 }
 
