@@ -23,6 +23,9 @@
 // Points are cosine-spaced along the chord to cluster near the leading
 // and trailing edges, then assembled into a closed polygon ordered
 // TE -> upper surface -> LE -> lower surface -> TE (counter-clockwise).
+// The polygon closes naturally because the upper-surface TE point equals
+// the lower-surface TE point; appending an extra copy would create a
+// degenerate zero-length panel at the trailing edge.
 
 export interface AirfoilPoint {
   x: number;
@@ -105,6 +108,5 @@ export function generateAirfoil(code: string, nPanels: number): AirfoilPoint[] {
   const pts: AirfoilPoint[] = [];
   for (let i = upper.length - 1; i >= 0; i -= 1) pts.push(upper[i]);
   for (let i = 1; i < lower.length; i += 1) pts.push(lower[i]);
-  pts.push({ ...pts[0] });
   return pts;
 }
