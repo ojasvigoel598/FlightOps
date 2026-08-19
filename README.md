@@ -80,7 +80,7 @@ Contracts ──▶ Hangar (design) ──▶ Mission (6 flight stages + events)
 
 - **Game state** lives in a React context (`contexts/GameContext.tsx`) and persists locally with AsyncStorage — fully offline.
 - **Mission runtime** (`hooks/useMission.tsx`) is a deterministic state machine driven by a seeded PRNG (`services/rng.ts`).
-- **Aerodynamics** (`services/aero/`) is pure, dependency-free TypeScript: NACA geometry → panel method → Cp/CL, plus unsteady Theodorsen/Wagner. The same mathematics is ported to Python in `scripts/validate_aero.py` and checked against 43 benchmarks.
+- **Aerodynamics** (`services/aero/`) is pure, dependency-free TypeScript: NACA geometry → panel method → Cp/CL, a Prandtl numerical lifting-line for finite wings (CL, induced drag, span efficiency), plus unsteady Theodorsen/Wagner. The same mathematics is ported to Python in `scripts/validate_aero.py` and checked against 66 benchmarks.
 
 ---
 
@@ -122,7 +122,7 @@ Everything is computed on-device, so it works fully offline.
 
 ## 🧪 Aerodynamics validation
 
-`scripts/validate_aero.py` ports the TypeScript aerodynamics to Python and checks **43 quantitative benchmarks** (no Python packages required; the `scipy` cross-checks are skipped gracefully if it's missing):
+`scripts/validate_aero.py` ports the TypeScript aerodynamics to Python and checks **66 quantitative benchmarks** (no Python packages required; the `scipy` cross-checks are skipped gracefully if it's missing):
 
 ```bash
 python3 scripts/validate_aero.py
@@ -139,6 +139,8 @@ Highlights — all passing:
 | Kutta condition Vt(TE) continuity | ~1e-16 residual |
 | Theodorsen C(k) vs `scipy.special.hankel2` | ~1e-16 across k |
 | Wagner w(s) vs exact inverse transform of C(k) | within ~0.6% |
+| Lifting-line elliptical wing: e = 1, uniform downwash, C_L = a₀·AR·α/(AR+2) | exact lifting-line solution |
+| Lifting-line rectangular wing: e ≈ 0.954, C_Lα ≈ 4.53/rad (AR = 6) | N→∞ converged LLT, cross-checked vs an independent discrete-horseshoe lifting line |
 
 Known, documented limitation: the constant-strength panel formulation overpredicts CL by ~10% vs thin-airfoil theory (why production codes use linear-strength panels) — this is stated in the code and tests rather than hidden.
 
@@ -171,7 +173,7 @@ app/                # Expo Router screens
   result.tsx        #   mission outcome / debrief
 components/         # UI + SVG chart components
 services/
-  aero/             # airfoil.ts · panel.ts · unsteady.ts (pure TS math)
+  aero/             # airfoil.ts · panel.ts · liftingLine.ts · unsteady.ts (pure TS math)
   simulation.ts     # vehicle stats (range, burn, safety, reliability)
   contracts.ts      # contract generation
   events.ts         # flight event definitions & outcomes
@@ -179,7 +181,7 @@ services/
 hooks/              # useGame · useMission
 contexts/           # GameContext (persisted game state)
 scripts/
-  validate_aero.py  # 43-check aerodynamics validation harness
+  validate_aero.py  # 66-check aerodynamics validation harness
 ```
 
 ---
