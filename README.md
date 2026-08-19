@@ -1,11 +1,14 @@
 # Flight Ops
 
-A flight-ops tycoon game with a built-in **linear-aerodynamics lab**, built with React Native and Expo for iOS, Android and web.
+An **aerospace aircraft design simulator and engineering game**, built with React Native and Expo for iOS, Android and web.
 
+- **Design tab** — define a mission (range, speed, payload) and design an aircraft to meet it. Change wing geometry, tail configuration, and propulsion — see mass breakdown and performance update in real time.
+- **Aero Lab** — a linear-aerodynamics engineering tool: ISA atmosphere, source-panel Cp, vortex-lattice CL, Prandtl-Glauert compressibility correction, pitching moment, Theodorsen/Wagner unsteady functions. All validated against closed-form solutions.
 - **Play the game** — run a cargo airline: take contracts, design aircraft in the hangar, fly missions with live telemetry and in-flight events, and grow your company.
-- **Run the Aero Lab** — an engineering tool that computes ISA atmosphere conditions, dynamic pressure, Reynolds and Mach numbers, a 2D source-panel method for flow over airfoils, a vortex-lattice lift model, and a drag polar. It is validated against thin-airfoil theory and the analytic cylinder pressure distribution, and it runs entirely on the phone.
+- **Aero Credits** — earn credits by completing missions with efficient, safe designs. Unlock higher-fidelity analysis tools (lifting-line, panel method, VLM, unsteady aero, stability).
+- **QR code** — scan to open on your phone (WebRTC LAN detection or manual URL input).
 
-Author: **Ojasvi Goel**.
+Author: **Ojasvi Goel** ([ojasvigoel598](https://github.com/ojasvigoel598)).
 
 ## Getting Started
 
@@ -36,7 +39,8 @@ npx expo export --platform web   # static output in dist/
 
 ```
 app/                    Expo Router screens
-  (tabs)/               Contract board, Hangar, Missions, Company, Aero Lab, Phone
+  (tabs)/               Hangar, Contracts, Aero Lab, Design, Company, Phone
+  qr.tsx                Standalone QR code page (/qr)
   mission.tsx           In-flight mission screen
   result.tsx            Mission result
 components/             Shared UI (panels, badges, telemetry deck, …)
@@ -44,14 +48,20 @@ constants/              Theme tokens and config
 contexts/               Game state provider
 hooks/                  useGame / useMission
 services/               Pure game + physics logic
-  aerodynamics.ts       ISA atmosphere, panel method, vortex lattice, drag polar
+  aerodynamics.ts       ISA, panel method, VLM, drag polar, Prandtl-Glauert, Cm
+  unsteady.ts           Theodorsen C(k), Wagner Phi(s), Duhamel superposition
+  unsteady-vortex.ts    Discrete vortex-panel method (UVLM-lite)
+  mission-design.ts     Mission definition and engineering requirements
+  aircraft-config.ts    Detailed aircraft geometry and mass breakdown
+  aero-credits.ts       Credits, progression, tech unlocks, educational explanations
   simulation.ts         Mission simulation
   contracts.ts          Procedural contract generation
-  reachable-url.ts      Loopback-safe URL resolution for the QR workflow
+  reachable-url.ts      QR URL resolution (WebRTC LAN detection)
   pwa.ts                PWA head tags + service-worker registration
 template/               Auth scaffolding (unused, not mounted in the app)
-tests/                  Vitest unit + physics sanity tests
+tests/                  Vitest unit + physics sanity tests (127 tests)
 public/                 Web-only static assets (manifest.json, sw.js, icon)
+docs/                   Research provenance and validation methodology
 ```
 
 ## Architecture
@@ -89,6 +99,37 @@ Key properties:
 - **Missions** — fly with live telemetry (progress, fuel, integrity, engine health) and react to in-flight events (crosswind, engine vibration, fuel leak, bird strike, icing, turbulence, hydraulics) with risk/reward decisions.
 - **Company** — money (£M), XP/levels, engineers and an upgrade shop (composite airframe, laminar wings, precision machining, AI co-pilot).
 - **Persistence** — save state lives in AsyncStorage; the game runs fully offline with no backend required.
+
+## Design tab (Mission Designer)
+
+The **Design** tab is the aerospace engineering laboratory where students define missions and design aircraft:
+
+### Mission definition
+8 preset mission types: Trainer, Regional Passenger, Long Range, Cargo, Surveillance UAV, High Speed, Agricultural, Custom. The student sets range, endurance, cruise speed, altitude, and payload. The system converts these into engineering requirements using Breguet range equations and Sadraey weight estimation.
+
+### Aircraft configuration
+Detailed geometry controls:
+- **Wing**: span, area, taper ratio, sweep, airfoil (5 NACA sections)
+- **Tail**: conventional, T-tail, V-tail, canard, or none
+- **Propulsion**: piston, turboprop, turbofan, or electric; engine count and power
+
+Changing any parameter immediately updates: mass breakdown, aspect ratio, wing loading, stall speed, cruise speed, max L/D, range, climb rate, takeoff distance, and feasibility assessment.
+
+### Aero Credits
+Earn credits by completing missions with efficient, safe designs. Credits unlock technology tiers:
+| Tier | Unlocks |
+| --- | --- |
+| Basic Analysis | Empirical Cd0, stall, range |
+| Lifting-Line | Span efficiency, downwash visualisation |
+| Panel Method | Cp distribution, velocity field |
+| Vortex Lattice | 3D multi-surface analysis |
+| Unsteady | Theodorsen, Wagner, flutter screening |
+| Stability | Static stability, CG envelope, trim |
+| Advanced Materials | Composite weight reduction |
+| Propulsion Sim | Engine maps, fuel flow |
+
+### Educational explanations
+Every key concept (aspect ratio, wing loading, static margin, L/D, stall speed) has both a **simple** explanation and an **engineering** explanation with equations and design guidance.
 
 ## Aerodynamics module (Aero Lab)
 
@@ -144,16 +185,17 @@ The **Phone** tab renders a live QR code that opens the app in a phone browser:
 
 > Open on phone → [QR] → Scan this QR code with your phone
 
-The QR payload is **resolved at runtime** from the URL the app is actually served from (`window.location.origin` on web; the Expo dev-server host URI in native dev builds) — nothing is hard-coded. `services/reachable-url.ts` rejects loopback-only addresses (`localhost`, `127.0.0.1`, `0.0.0.0`, `::1`) because a phone can never reach those; when no reachable URL can be derived, the screen shows guidance instead of an unusable code. The same logic is unit-tested in `tests/reachable-url.test.ts`.
+The QR payload is **resolved at runtime** using three strategies: (1) the web origin if not localhost, (2) WebRTC-based LAN IP detection (free, no API key, works when phone and computer are on the same WiFi), or (3) manual URL input where the user pastes the preview URL. `services/reachable-url.ts` rejects loopback-only addresses (`localhost`, `127.0.0.1`, `0.0.0.0`, `::1`) because a phone can never reach those.
+
+A standalone QR page is also available at `/qr` — bookmarkable for quick access.
 
 Workflow:
 
 1. Open the app in the web preview (the preview URL is phone-reachable).
-2. Open the **Phone** tab and scan the QR with the phone camera / Google Lens.
+2. Open the **Phone** tab (or navigate to `/qr`) and scan the QR with the phone camera / Google Lens.
 3. The phone opens the same app in its browser — all gameplay and the Aero Lab run on-device, so the phone needs no backend.
-4. On Android/Chrome the deployed web build can be installed to the home screen (it is an installable PWA — see below).
-
-The QR has a white quiet zone, high-contrast black modules on white, and is sized for normal scanning distance. Automated payload validation is covered by the unit tests; a physical scan on a real phone is the final check.
+4. If auto-detection fails (browser blocks WebRTC), paste the preview URL into the manual input field.
+5. On Android/Chrome the deployed web build can be installed to the home screen (it is an installable PWA — see below).
 
 ## PWA and Android packaging
 
@@ -188,7 +230,7 @@ This repository keeps the managed workflow (no committed `android/`/`ios/` folde
 pnpm test
 ```
 
-Runs the Vitest suite (91 tests across 7 files):
+Runs the Vitest suite (127 tests across 9 files):
 
 - **Aerodynamics** (37 tests) — cylinder Cp vs the analytic doublet solution; flat-plate CL convergence to 2πα; zero-lift angles for cambered NACA sections; Prandtl-Glauert correction factor and compressibility-corrected CL/CD; pitching moment coefficient for symmetric and cambered airfoils; drag polar sanity; validation errors on impossible inputs and supersonic Mach.
 - **Unsteady aerodynamics** (23 tests) — Bessel function Wronskian and zeros; Theodorsen C(k) limits, table values, monotonicity; Wagner function exact limits, small-time Sears series, large-time asymptotic, Jones/Garrick error bounds; Duhamel harmonic steady state vs Theodorsen (Garrick relation).
@@ -196,7 +238,9 @@ Runs the Vitest suite (91 tests across 7 files):
 - **Simulation physics** (6 tests) — mission telemetry sanity (fuel burn, progress, event handling).
 - **Contracts** (4 tests) — seeded RNG reproducibility, difficulty/reward bounds.
 - **Math utils** (7 tests) — clamping, rounding, interpolation edge cases.
-- **Reachable URL** (6 tests) — QR payload validation: rejects localhost/loopback and non-http(s), accepts real hosts.
+- **Reachable URL** (8 tests) — QR payload validation: rejects localhost/loopback and non-http(s), accepts real hosts, buildLanUrl construction.
+- **Mission design** (15 tests) — preset missions, requirements computation, scoring, aircraft config defaults, mass breakdown consistency, performance derivation.
+- **Aero Credits** (19 tests) — tech tier prerequisites, credit deduction, reward computation, design comparison, educational explanations.
 
 Typecheck the whole project with `pnpm exec tsc -b --noEmit`. For release checks, export the static web build with `npx expo export --platform web` and smoke-test the app (launch → contract board → mission → Aero Lab → Phone tab → refresh) in the preview.
 
