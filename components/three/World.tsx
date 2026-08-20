@@ -1,5 +1,6 @@
-// 3D world environment — runway, terrain, sky, clouds.
-// Designed for the aircraft-design learning game (Model B).
+// 3D world environment — runway, terrain, sky, clouds, mountains, hangar.
+// Designed for the Fun Mode aircraft-design game.
+// All geometry is lightweight (basic Three.js primitives).
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
@@ -78,13 +79,10 @@ export function Terrain({ size = 500 }: { size?: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// Sky — gradient hemisphere
+// Sky — gradient hemisphere with sun
 // ---------------------------------------------------------------------------
 
 export function Sky() {
-  const topColor = useMemo(() => new THREE.Color('#1E3A5F'), []);
-  const bottomColor = useMemo(() => new THREE.Color('#87CEEB'), []);
-
   return (
     <>
       {/* Sky dome */}
@@ -105,26 +103,28 @@ export function Sky() {
       <ambientLight intensity={0.5} color="#B0C4DE" />
 
       {/* Ground bounce */}
-      <hemisphereLight
-        args={['#87CEEB', '#4A7C59', 0.3]}
-      />
+      <hemisphereLight args={['#87CEEB', '#4A7C59', 0.3]} />
     </>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Clouds — simple sphere clusters
+// Clouds — soft sphere clusters
 // ---------------------------------------------------------------------------
 
 export function Clouds({ count = 12 }: { count?: number }) {
   const clouds = useMemo(() => {
-    return Array.from({ length: count }).map((_, i) => ({
-      x: (Math.random() - 0.5) * 300,
-      y: 40 + Math.random() * 30,
-      z: (Math.random() - 0.5) * 300,
-      scale: 3 + Math.random() * 5,
-      puffs: 3 + Math.floor(Math.random() * 3),
-    }));
+    // Use seeded positions for deterministic layout
+    return Array.from({ length: count }).map((_, i) => {
+      const seed = (i * 7 + 13) % 100;
+      return {
+        x: ((seed * 3.7) % 300) - 150,
+        y: 40 + (seed * 1.1) % 30,
+        z: ((seed * 5.3) % 300) - 150,
+        scale: 3 + (seed * 0.7) % 5,
+        puffs: 3 + (seed % 3),
+      };
+    });
   }, [count]);
 
   return (
@@ -140,7 +140,7 @@ export function Clouds({ count = 12 }: { count?: number }) {
                 Math.cos(j * 0.8) * c.scale * 0.2,
               ]}
             >
-              <sphereGeometry args={[c.scale * (0.6 + Math.random() * 0.4), 8, 6]} />
+              <sphereGeometry args={[c.scale * 0.7, 8, 6]} />
               <meshStandardMaterial
                 color="#FFFFFF"
                 transparent
@@ -156,28 +156,136 @@ export function Clouds({ count = 12 }: { count?: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// Mountains — distant background
+// Mountains — snow-capped cones
 // ---------------------------------------------------------------------------
 
 export function Mountains({ count = 8 }: { count?: number }) {
   const peaks = useMemo(() => {
-    return Array.from({ length: count }).map((_, i) => ({
-      x: (Math.random() - 0.5) * 400,
-      z: -150 - Math.random() * 100,
-      height: 20 + Math.random() * 40,
-      radius: 15 + Math.random() * 20,
-    }));
+    return Array.from({ length: count }).map((_, i) => {
+      const seed = (i * 11 + 7) % 100;
+      return {
+        x: ((seed * 4.1) % 400) - 200,
+        z: -150 - (seed * 1.7) % 100,
+        height: 20 + (seed * 1.3) % 40,
+        radius: 15 + (seed * 0.9) % 20,
+      };
+    });
   }, [count]);
 
   return (
     <>
       {peaks.map((p, i) => (
-        <mesh key={i} position={[p.x, p.height / 2 - 5, p.z]}>
-          <coneGeometry args={[p.radius, p.height, 6]} />
-          <meshStandardMaterial color="#6B8E7B" roughness={0.9} />
-        </mesh>
+        <group key={i}>
+          {/* Mountain body */}
+          <mesh position={[p.x, p.height / 2 - 5, p.z]}>
+            <coneGeometry args={[p.radius, p.height, 6]} />
+            <meshStandardMaterial color="#6B8E7B" roughness={0.9} />
+          </mesh>
+          {/* Snow cap */}
+          <mesh position={[p.x, p.height - 6, p.z]}>
+            <coneGeometry args={[p.radius * 0.3, p.height * 0.3, 6]} />
+            <meshStandardMaterial color="#F0F8FF" roughness={0.5} />
+          </mesh>
+        </group>
       ))}
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Hangar — box building with arched roof
+// ---------------------------------------------------------------------------
+
+export function Hangar({ position = [25, 0, 10] as [number, number, number] }) {
+  return (
+    <group position={position}>
+      {/* Main building body */}
+      <mesh position={[0, 4, 0]}>
+        <boxGeometry args={[14, 8, 10]} />
+        <meshStandardMaterial color="#4A5568" metalness={0.4} roughness={0.6} />
+      </mesh>
+      {/* Roof */}
+      <mesh position={[0, 8.5, 0]}>
+        <boxGeometry args={[15, 1, 11]} />
+        <meshStandardMaterial color="#2D3748" metalness={0.5} roughness={0.5} />
+      </mesh>
+      {/* Door opening (dark rectangle) */}
+      <mesh position={[0, 3, 5.01]}>
+        <planeGeometry args={[6, 6]} />
+        <meshStandardMaterial color="#1A1A2E" />
+      </mesh>
+      {/* Door frame */}
+      <mesh position={[0, 3, 5.02]}>
+        <ringGeometry args={[2.8, 3.2, 16, 1, 0, Math.PI]} />
+        <meshStandardMaterial color="#718096" />
+      </mesh>
+      {/* Windows */}
+      {[-5, 5].map((x, i) => (
+        <mesh key={i} position={[x, 6, 5.01]}>
+          <planeGeometry args={[2, 1.5]} />
+          <meshStandardMaterial color="#87CEEB" transparent opacity={0.6} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Trees — simple cone + cylinder combos
+// ---------------------------------------------------------------------------
+
+export function Trees({ count = 20 }: { count?: number }) {
+  const trees = useMemo(() => {
+    return Array.from({ length: count }).map((_, i) => {
+      const seed = (i * 17 + 3) % 100;
+      return {
+        x: ((seed * 5.7) % 120) - 60,
+        z: ((seed * 3.3) % 100) - 50,
+        height: 3 + (seed * 0.4) % 4,
+        radius: 1.5 + (seed * 0.3) % 2,
+      };
+    });
+  }, [count]);
+
+  return (
+    <>
+      {trees.map((t, i) => (
+        <group key={i} position={[t.x, 0, t.z]}>
+          {/* Trunk */}
+          <mesh position={[0, t.height * 0.3, 0]}>
+            <cylinderGeometry args={[0.15, 0.2, t.height * 0.5, 6]} />
+            <meshStandardMaterial color="#5D4037" roughness={0.9} />
+          </mesh>
+          {/* Canopy */}
+          <mesh position={[0, t.height * 0.7, 0]}>
+            <coneGeometry args={[t.radius, t.height * 0.6, 6]} />
+            <meshStandardMaterial color="#2E7D32" roughness={0.9} />
+          </mesh>
+        </group>
+      ))}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Water — reflective plane
+// ---------------------------------------------------------------------------
+
+export function Water({ position = [80, 0.05, -30] as [number, number, number], size = 60 }: {
+  position?: [number, number, number];
+  size?: number;
+}) {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={position}>
+      <planeGeometry args={[size, size]} />
+      <meshStandardMaterial
+        color="#2196F3"
+        transparent
+        opacity={0.7}
+        metalness={0.8}
+        roughness={0.1}
+      />
+    </mesh>
   );
 }
 
@@ -205,5 +313,38 @@ export function WindIndicator({ windMs = 0, direction = 0 }: { windMs?: number; 
         <meshStandardMaterial color="#FF6B35" />
       </mesh>
     </group>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Runway lights — edge lights for the game feel
+// ---------------------------------------------------------------------------
+
+export function RunwayLights({ length = 200, width = 20 }: { length?: number; width?: number }) {
+  const lights = useMemo(() => {
+    const items: { x: number; z: number }[] = [];
+    const step = 10;
+    for (let z = -length / 2 + 5; z <= length / 2 - 5; z += step) {
+      items.push({ x: -width / 2 + 1, z });
+      items.push({ x: width / 2 - 1, z });
+    }
+    return items;
+  }, [length, width]);
+
+  return (
+    <>
+      {lights.map((l, i) => (
+        <group key={i} position={[l.x, 0.1, l.z]}>
+          <mesh>
+            <sphereGeometry args={[0.15, 6, 4]} />
+            <meshStandardMaterial
+              color={i % 2 === 0 ? '#FFD700' : '#00FF88'}
+              emissive={i % 2 === 0 ? '#FFD700' : '#00FF88'}
+              emissiveIntensity={0.8}
+            />
+          </mesh>
+        </group>
+      ))}
+    </>
   );
 }
