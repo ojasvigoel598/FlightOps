@@ -18,3 +18,5 @@ export { StatReadout } from './feature/StatReadout';
 export { TelemetryDeck } from './feature/TelemetryDeck';
 export { EventCard } from './feature/EventCard';
 export { UpgradeCard } from './feature/UpgradeCard';
+
+export { LineChart } from './charts/LineChart';
