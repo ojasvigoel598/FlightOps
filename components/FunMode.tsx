@@ -1,11 +1,11 @@
-// Fun Mode — interactive 3D aircraft design game.
+// Fun Mode — interactive 3D aircraft design game (upgraded).
 //
-// Top half: live 3D viewport showing the aircraft in a world environment.
-//   The aircraft changes shape in real time as the player modifies design choices.
-//   A "Fly" button animates takeoff and cruise.
+// Top half: live 3D viewport with chase camera, animated ocean,
+//   engine exhaust, wingtip contrails, and smooth flight animation.
 //
-// Bottom half: scrollable design panel with option cards for wing, tail,
-//   airfoil, engine, and mission. No equations — learn by experimenting.
+// Bottom half: scrollable design panel with option cards.
+//   A "Fly" button triggers full taxi→takeoff→cruise with particles.
+//   Camera mode toggle: chase / orbit / side view.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -13,16 +13,19 @@ import { Canvas } from '@react-three/fiber';
 
 import { Badge, Panel } from '@/components';
 import AircraftModel, { buildDesignParams } from '@/components/three/AircraftModel';
+import ChaseCamera from '@/components/three/ChaseCamera';
+import { EngineExhaust, WingtipContrail } from '@/components/three/Particles';
 import {
   Clouds,
+  ControlTower,
   Hangar,
   Mountains,
+  Ocean,
   Runway,
   RunwayLights,
   Sky,
   Terrain,
   Trees,
-  Water,
   WindIndicator,
 } from '@/components/three/World';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
@@ -63,9 +66,9 @@ const WING_OPTIONS: OptionCard[] = [
 const TAIL_OPTIONS: OptionCard[] = [
   { id: 'conventional', label: 'Normal Tail', icon: '✈️', tip: 'The classic design. Stable, predictable, easy to fly.', tag: 'Reliable' },
   { id: 't-tail', label: 'T-Tail', icon: '🔷', tip: 'Tail sits on top. Cleaner airflow, used on many jets.', tag: 'Clean' },
-  { id: 'v-tail', label: 'V-Tail', icon: '🔷', tip: 'Two surfaces in a V shape. Less drag, but trickier to control.', tag: 'Low drag' },
+  { id: 'v-tail', label: 'V-Tail', icon: '🔷', tip: 'Two surfaces in a V shape. Less drag, trickier to control.', tag: 'Low drag' },
   { id: 'canard', label: 'Canard', icon: '🐦', tip: 'Small wing in front! Prevents stalls and looks futuristic.', tag: 'Safe' },
-  { id: 'none', label: 'No Tail', icon: '🔲', tip: 'Flying wing. Maximum efficiency, but needs computer control.', tag: 'Advanced' },
+  { id: 'none', label: 'No Tail', icon: '🔲', tip: 'Flying wing. Maximum efficiency, needs computer control.', tag: 'Advanced' },
 ];
 
 const PROP_OPTIONS: OptionCard[] = [
@@ -84,15 +87,15 @@ const AIRFOIL_OPTIONS: OptionCard[] = [
 
 const MISSION_OPTIONS: OptionCard[] = [
   { id: 'trainer', label: 'Learn to Fly', icon: '🎓', tip: 'A simple training mission. Short distance, low speed.', tag: 'Beginner' },
-  { id: 'regional-passenger', label: 'Passenger Flight', icon: '👥', tip: 'Carry people between cities. Needs good range and safety.', tag: 'Airliner' },
+  { id: 'regional-passenger', label: 'Passenger Flight', icon: '👥', tip: 'Carry people between cities. Needs range and safety.', tag: 'Airliner' },
   { id: 'cargo', label: 'Cargo Haul', icon: '📦', tip: 'Heavy loads over medium distance. Needs strong wings.', tag: 'Freight' },
   { id: 'surveillance', label: 'Recon Patrol', icon: '👁️', tip: 'Fly for hours and watch. Needs endurance, not speed.', tag: 'UAV' },
   { id: 'high-speed', label: 'Speed Run', icon: '⚡', tip: 'Go fast! Sleek design, powerful engines, low drag.', tag: 'Fast' },
-  { id: 'agricultural', label: 'Crop Spraying', icon: '🌾', tip: 'Low and slow over fields. Needs short-field performance.', tag: 'AG' },
+  { id: 'agricultural', label: 'Crop Spraying', icon: '🌾', tip: 'Low and slow over fields. Short-field performance.', tag: 'AG' },
 ];
 
 // ---------------------------------------------------------------------------
-// Wing / engine presets
+// Presets
 // ---------------------------------------------------------------------------
 
 const WING_PRESETS: Record<string, { spanM: number; areaM2: number }> = {
@@ -118,107 +121,160 @@ const MISSION_PRESETS: Record<string, MissionType> = {
   agricultural: 'agricultural',
 };
 
+type CameraMode = 'chase' | 'orbit' | 'side';
+
 // ---------------------------------------------------------------------------
-// 3D Scene (rendered inside Canvas)
+// 3D Scene
 // ---------------------------------------------------------------------------
 
 function AircraftScene({
   designParams,
   flying,
   flightProgress,
+  cameraMode,
+  propChoice,
 }: {
   designParams: ReturnType<typeof buildDesignParams>;
   flying: boolean;
-  flightProgress: number; // 0 = parked, 0-0.2 = taxi, 0.2-0.5 = takeoff, 0.5-1 = cruise
+  flightProgress: number;
+  cameraMode: CameraMode;
+  propChoice: string;
 }) {
-  // Animate aircraft position and rotation based on flight progress
+  // Aircraft position — 4 flight phases
   const position: [number, number, number] = useMemo(() => {
-    if (!flying) return [0, 1.2, 0]; // Parked on runway
+    if (!flying) return [0, 1.2, 0];
 
-    if (flightProgress < 0.2) {
-      // Taxi — on ground, rolling forward
-      const t = flightProgress / 0.2;
-      return [0, 1.2, t * -40];
+    if (flightProgress < 0.15) {
+      // Taxi
+      const t = flightProgress / 0.15;
+      return [0, 1.2, t * -30];
     }
-    if (flightProgress < 0.5) {
-      // Takeoff — climbing
-      const t = (flightProgress - 0.2) / 0.3;
-      return [0, 1.2 + t * 30, -40 - t * 60];
+    if (flightProgress < 0.4) {
+      // Takeoff roll + rotation
+      const t = (flightProgress - 0.15) / 0.25;
+      const liftOff = Math.max(0, t - 0.4); // rotates at 40% of takeoff
+      return [0, 1.2 + liftOff * 40, -30 - t * 80];
     }
-    // Cruise — level flight, banking
-    const t = (flightProgress - 0.5) / 0.5;
-    const bankAngle = Math.sin(t * Math.PI * 2) * 0.3;
-    return [Math.sin(t * Math.PI) * 20, 31 + Math.sin(t * Math.PI * 0.5) * 5, -100 - t * 80];
+    if (flightProgress < 0.7) {
+      // Climb to cruise
+      const t = (flightProgress - 0.4) / 0.3;
+      return [0, 20 + t * 20, -110 - t * 60];
+    }
+    // Cruise — gentle turns
+    const t = (flightProgress - 0.7) / 0.3;
+    return [
+      Math.sin(t * Math.PI * 2) * 30,
+      40 + Math.sin(t * Math.PI) * 5,
+      -170 - t * 100,
+    ];
   }, [flying, flightProgress]);
 
   const pitch = useMemo(() => {
     if (!flying) return 0;
-    if (flightProgress < 0.2) return 0;
-    if (flightProgress < 0.5) {
-      const t = (flightProgress - 0.2) / 0.3;
-      return t * 0.25; // Climbing pitch
+    if (flightProgress < 0.15) return 0;
+    if (flightProgress < 0.4) {
+      const t = (flightProgress - 0.15) / 0.25;
+      return Math.min(t * 0.4, 0.3); // Rotation pitch
     }
-    return Math.sin((flightProgress - 0.5) * Math.PI) * 0.08;
+    if (flightProgress < 0.7) {
+      const t = (flightProgress - 0.4) / 0.3;
+      return 0.15 * (1 - t); // Reduce pitch as we level off
+    }
+    const t = (flightProgress - 0.7) / 0.3;
+    return Math.sin(t * Math.PI * 2) * 0.05; // Slight banking oscillation
   }, [flying, flightProgress]);
 
   const bank = useMemo(() => {
-    if (!flying || flightProgress < 0.5) return 0;
-    const t = (flightProgress - 0.5) / 0.5;
-    return Math.sin(t * Math.PI * 2) * 0.3;
+    if (!flying || flightProgress < 0.7) return 0;
+    const t = (flightProgress - 0.7) / 0.3;
+    return Math.sin(t * Math.PI * 2) * 0.25;
   }, [flying, flightProgress]);
 
-  const flightSpeed = flying ? (flightProgress < 0.2 ? 0.1 : flightProgress < 0.5 ? 0.6 : 1.0) : 0;
+  const flightSpeed = flying
+    ? flightProgress < 0.15
+      ? 0.1
+      : flightProgress < 0.4
+        ? 0.5
+        : 1.0
+    : 0;
+
+  // Throttle for particles
+  const throttle = flying
+    ? flightProgress < 0.15
+      ? 0.3
+      : flightProgress < 0.4
+        ? 0.8
+        : 0.6
+    : 0;
+
+  const isJet = propChoice === 'turbofan';
+  const isHighAlt = flying && flightProgress > 0.5;
+
+  // Engine positions for particles
+  const enginePositions = useMemo(() => {
+    const spacing = designParams.spanM * 0.25;
+    if (designParams.engineCount === 1) return [[0, -0.55, 0.5] as [number, number, number]];
+    return [
+      [-spacing, -0.15, 0] as [number, number, number],
+      [spacing, -0.15, 0] as [number, number, number],
+    ];
+  }, [designParams.engineCount, designParams.spanM]);
 
   return (
     <>
       <Sky />
       <Terrain />
+      <Ocean />
       <Runway />
       <RunwayLights />
-      <Clouds count={15} />
-      <Mountains count={10} />
+      <Clouds count={18} />
+      <Mountains count={14} />
       <Hangar />
-      <Trees count={25} />
-      <Water />
+      <ControlTower />
+      <Trees count={35} />
       <WindIndicator windMs={8} direction={45} />
 
-      {/* Camera follows aircraft from behind */}
-      <CameraRig
+      {/* Chase camera */}
+      <ChaseCamera
         target={position}
+        pitch={pitch}
+        bank={bank}
         flying={flying}
-        flightProgress={flightProgress}
+        mode={cameraMode}
       />
 
-      {/* The aircraft */}
+      {/* Aircraft */}
       <group position={position} rotation={[pitch, 0, bank]}>
-        <AircraftModel design={designParams} />
+        <AircraftModel design={{ ...designParams, flightSpeed, pitch: 0, bank: 0 }} />
+
+        {/* Engine exhaust particles */}
+        {enginePositions.map((pos, i) => (
+          <EngineExhaust
+            key={`exhaust-${i}`}
+            position={pos}
+            throttle={throttle}
+            direction={[0, 0.05, -1]}
+          />
+        ))}
+
+        {/* Wingtip contrails */}
+        {isHighAlt && (
+          <>
+            <WingtipContrail
+              position={[designParams.spanM / 2, 0, 0.5]}
+              active={isHighAlt}
+              speed={flightSpeed * 250}
+            />
+            <WingtipContrail
+              position={[-designParams.spanM / 2, 0, 0.5]}
+              active={isHighAlt}
+              speed={flightSpeed * 250}
+            />
+          </>
+        )}
       </group>
     </>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Camera that follows the aircraft
-// ---------------------------------------------------------------------------
-
-function CameraRig({
-  target,
-  flying,
-  flightProgress,
-}: {
-  target: [number, number, number];
-  flying: boolean;
-  flightProgress: number;
-}) {
-  const cameraRef = useRef<any>(null);
-
-  useEffect(() => {
-    // We can't directly access the R3F camera easily from here,
-    // so we'll rely on the Canvas camera position props instead.
-  }, [target, flying, flightProgress]);
-
-  // Return null — camera is positioned via Canvas props
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,8 +291,9 @@ export default function FunMode() {
   const [propChoice, setPropChoice] = useState('turboprop');
   const [airfoilChoice, setAirfoilChoice] = useState('naca2412');
   const [missionChoice, setMissionChoice] = useState('trainer');
+  const [cameraMode, setCameraMode] = useState<CameraMode>('chase');
 
-  // Flight animation state
+  // Flight state
   const [flying, setFlying] = useState(false);
   const [flightProgress, setFlightProgress] = useState(0);
   const flightRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -285,7 +342,7 @@ export default function FunMode() {
     return { perf, feasible, mission, requirements, wingLoading: perf.wingLoading, stallSpeed: perf.stallSpeedMs };
   }, [wingChoice, tailChoice, propChoice, airfoilChoice, missionChoice]);
 
-  // Build 3D design params from current choices
+  // 3D design params
   const designParams = useMemo(() => {
     return buildDesignParams({
       wingId: wingChoice,
@@ -306,7 +363,7 @@ export default function FunMode() {
     setFlightProgress(0);
     let progress = 0;
     flightRef.current = setInterval(() => {
-      progress += 0.008;
+      progress += 0.006;
       if (progress >= 1) {
         progress = 1;
         clearInterval(flightRef.current!);
@@ -314,17 +371,14 @@ export default function FunMode() {
         setTimeout(() => {
           setFlying(false);
           setFlightProgress(0);
-        }, 1500); // Hold at cruise for 1.5s then return
+        }, 2000);
       }
       setFlightProgress(progress);
     }, 30);
   }, [flying]);
 
-  // Cleanup animation on unmount
   useEffect(() => {
-    return () => {
-      if (flightRef.current) clearInterval(flightRef.current);
-    };
+    return () => { if (flightRef.current) clearInterval(flightRef.current); };
   }, []);
 
   return (
@@ -340,20 +394,37 @@ export default function FunMode() {
             designParams={designParams}
             flying={flying}
             flightProgress={flightProgress}
+            cameraMode={cameraMode}
+            propChoice={propChoice}
           />
         </Canvas>
+
+        {/* Camera mode toggle */}
+        <View style={s.cameraToggle}>
+          {(['chase', 'orbit', 'side'] as CameraMode[]).map((m) => (
+            <Pressable
+              key={m}
+              onPress={() => setCameraMode(m)}
+              style={[s.camBtn, cameraMode === m && s.camBtnActive]}
+            >
+              <Text style={[s.camBtnText, cameraMode === m && s.camBtnTextActive]}>
+                {m === 'chase' ? '📹 Chase' : m === 'orbit' ? '🔄 Orbit' : '🎬 Side'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         {/* Flight status overlay */}
         {flying && (
           <View style={s.flightOverlay}>
             <Text style={s.flightText}>
-              {flightProgress < 0.2
-                ? '🛫 Taxiing...'
-                : flightProgress < 0.5
-                  ? '✈️ Taking off!'
-                  : flightProgress < 1
-                    ? '🛩️ Cruising!'
-                    : '✅ Flight complete!'}
+              {flightProgress < 0.15
+                ? '🛫 Taxiing to runway...'
+                : flightProgress < 0.4
+                  ? '✈️ Rotating — takeoff!'
+                  : flightProgress < 0.7
+                    ? '🛩️ Climbing to cruise altitude'
+                    : '☁️ Cruise flight — enjoy the view!'}
             </Text>
             <View style={s.progressBar}>
               <View style={[s.progressFill, { width: `${flightProgress * 100}%` }]} />
@@ -361,7 +432,7 @@ export default function FunMode() {
           </View>
         )}
 
-        {/* Stats HUD overlay */}
+        {/* HUD when parked */}
         {!flying && (
           <View style={s.hud}>
             <View style={s.hudItem}>
@@ -376,13 +447,16 @@ export default function FunMode() {
               <Text style={s.hudLabel}>L/D</Text>
               <Text style={s.hudValue}>{fmt(result.perf.maxLd, 0)}:1</Text>
             </View>
+            <View style={s.hudItem}>
+              <Text style={s.hudLabel}>Stall</Text>
+              <Text style={s.hudValue}>{fmt(result.stallSpeed, 0)} m/s</Text>
+            </View>
           </View>
         )}
       </View>
 
       {/* ─── Scrollable Design Panel ─── */}
       <ScrollView style={s.panel} contentContainerStyle={s.panelContent}>
-        {/* Fly button */}
         <Pressable
           onPress={startFlight}
           style={[s.flyButton, flying && s.flyButtonDisabled]}
@@ -393,8 +467,7 @@ export default function FunMode() {
           </Text>
         </Pressable>
 
-        {/* Mission picker */}
-        <Panel title="What's the mission?" subtitle="Pick what you want to do.">
+        <Panel title="Mission" subtitle="Pick what you want to do.">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.horizontalScroll}>
             {MISSION_OPTIONS.map((opt) => (
               <OptionCardH key={opt.id} option={opt} active={missionChoice === opt.id} onPress={() => setMissionChoice(opt.id)} />
@@ -402,8 +475,7 @@ export default function FunMode() {
           </ScrollView>
         </Panel>
 
-        {/* Wing picker */}
-        <Panel title="Choose your wing" subtitle="The wing is the most important part.">
+        <Panel title="Wing" subtitle="The most important part.">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.horizontalScroll}>
             {WING_OPTIONS.map((opt) => (
               <OptionCardH key={opt.id} option={opt} active={wingChoice === opt.id} onPress={() => setWingChoice(opt.id)} />
@@ -411,8 +483,7 @@ export default function FunMode() {
           </ScrollView>
         </Panel>
 
-        {/* Airfoil picker */}
-        <Panel title="Wing shape (airfoil)" subtitle="The cross-section of your wing.">
+        <Panel title="Airfoil" subtitle="Cross-section of your wing.">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.horizontalScroll}>
             {AIRFOIL_OPTIONS.map((opt) => (
               <OptionCardH key={opt.id} option={opt} active={airfoilChoice === opt.id} onPress={() => setAirfoilChoice(opt.id)} />
@@ -420,8 +491,7 @@ export default function FunMode() {
           </ScrollView>
         </Panel>
 
-        {/* Tail picker */}
-        <Panel title="Tail design" subtitle="The tail keeps your aircraft stable.">
+        <Panel title="Tail" subtitle="Stability and control.">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.horizontalScroll}>
             {TAIL_OPTIONS.map((opt) => (
               <OptionCardH key={opt.id} option={opt} active={tailChoice === opt.id} onPress={() => setTailChoice(opt.id)} />
@@ -429,8 +499,7 @@ export default function FunMode() {
           </ScrollView>
         </Panel>
 
-        {/* Propulsion picker */}
-        <Panel title="Engine type" subtitle="What powers your aircraft?">
+        <Panel title="Engine" subtitle="What powers your aircraft?">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.horizontalScroll}>
             {PROP_OPTIONS.map((opt) => (
               <OptionCardH key={opt.id} option={opt} active={propChoice === opt.id} onPress={() => setPropChoice(opt.id)} />
@@ -438,26 +507,24 @@ export default function FunMode() {
           </ScrollView>
         </Panel>
 
-        {/* Results */}
-        <Panel title="How does it fly?" tone="raised">
+        <Panel title="Performance" tone="raised">
           <View style={s.resultGrid}>
             <ResultStat label="Max Speed" value={`${fmt(result.perf.cruiseSpeedMs * 3.6, 0)} km/h`} good={result.perf.cruiseSpeedMs > 100} />
             <ResultStat label="Range" value={`${fmt(result.perf.rangeKm, 0)} km`} good={result.perf.rangeKm >= result.mission.rangeKm} />
-            <ResultStat label="Lift efficiency" value={`${fmt(result.perf.maxLd, 0)}:1`} good={result.perf.maxLd > 10} />
-            <ResultStat label="Stall speed" value={`${fmt(result.stallSpeed, 0)} m/s`} good={result.stallSpeed < 35} />
-            <ResultStat label="Weight" value={`${fmt(result.perf.wingLoading, 0)} N/m²`} good={result.wingLoading < 3000} />
+            <ResultStat label="L/D" value={`${fmt(result.perf.maxLd, 0)}:1`} good={result.perf.maxLd > 10} />
+            <ResultStat label="Stall" value={`${fmt(result.stallSpeed, 0)} m/s`} good={result.stallSpeed < 35} />
+            <ResultStat label="W/S" value={`${fmt(result.perf.wingLoading, 0)} N/m²`} good={result.wingLoading < 3000} />
             <ResultStat label="Climb" value={`${fmt(result.perf.climbRateMs, 1)} m/s`} good={result.perf.climbRateMs > 2} />
           </View>
           <View style={s.badgeRow}>
             <Badge
-              label={result.feasible ? 'Mission possible!' : 'Mission too hard'}
+              label={result.feasible ? '✅ Mission possible!' : '⚠️ Mission too hard'}
               tone={result.feasible ? 'success' : 'warning'}
             />
           </View>
         </Panel>
 
-        {/* Learning tip */}
-        <Panel title="What did you learn?" tone="raised">
+        <Panel title="💡 What did you learn?" tone="raised">
           <Text style={s.tipText}>
             {wingChoice === 'long' && 'Long, slender wings are like a glider — they cut through the air with less effort. That\'s why gliders have very long wings.'}
             {wingChoice === 'short' && 'Short wings make the aircraft fast but it needs more speed to stay in the air. Fighter jets have short wings.'}
@@ -467,12 +534,12 @@ export default function FunMode() {
             {tailChoice === 'canard' && 'A canard (small front wing) creates lift AND prevents the main wing from stalling. Many modern fighters use this.'}
             {tailChoice === 'none' && 'Flying wings have no tail — all lift comes from the wing itself. This is the most efficient shape, but hard to control without computers.'}
             {airfoilChoice === 'naca4412' && 'A curved airfoil creates more lift at low speeds — great for short runways. The downside is more drag at high speed.'}
+            {airfoilChoice === 'naca0012' && 'A symmetric airfoil generates zero lift at zero angle of attack. It\'s used on aerobatic planes that need equal performance upright and inverted.'}
             {!['long', 'short', 'wide'].includes(wingChoice) && !['turbofan', 'electric'].includes(propChoice) && !['canard', 'none'].includes(tailChoice) && airfoilChoice === 'naca2412' &&
               'Your design is balanced! Try changing one thing at a time to see how it affects performance. What happens if you make the wings longer?'}
           </Text>
         </Panel>
 
-        {/* Bottom padding for safe area */}
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -512,30 +579,46 @@ function ResultStat({ label, value, good }: { label: string; value: string; good
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   viewport: {
-    height: '38%',
-    backgroundColor: '#87CEEB',
+    height: '40%',
+    backgroundColor: '#6CB4EE',
     borderBottomWidth: 2,
     borderBottomColor: colors.borderStrong,
     position: 'relative',
   },
   canvas: { flex: 1 },
+  cameraToggle: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  camBtn: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  camBtnActive: { backgroundColor: 'rgba(255,176,32,0.7)' },
+  camBtnText: { color: '#CCC', fontSize: 10, fontWeight: '600' },
+  camBtnTextActive: { color: '#000' },
   hud: {
     position: 'absolute',
     bottom: 8,
     left: 8,
     right: 8,
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   hudItem: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
     borderRadius: radius.sm,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     alignItems: 'center',
   },
-  hudLabel: { color: colors.textFaint, fontSize: fontSize.xs },
+  hudLabel: { color: colors.textFaint, fontSize: 9 },
   hudValue: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
   flightOverlay: {
     position: 'absolute',
@@ -554,11 +637,7 @@ const s = StyleSheet.create({
     marginTop: 6,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-  },
+  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
   panel: { flex: 1 },
   panelContent: { padding: spacing.lg, gap: spacing.md },
   flyButton: {
@@ -588,13 +667,9 @@ const s = StyleSheet.create({
   optionTip: { color: colors.textFaint, fontSize: fontSize.xs, lineHeight: 14, marginTop: 2 },
   resultGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   resultStat: {
-    flexGrow: 1,
-    flexBasis: '28%',
+    flexGrow: 1, flexBasis: '28%',
     backgroundColor: colors.backgroundAlt,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: 2,
-    alignItems: 'center',
+    borderRadius: radius.md, padding: spacing.md, gap: 2, alignItems: 'center',
   },
   resultLabel: { color: colors.textFaint, fontSize: fontSize.xs },
   resultValue: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
