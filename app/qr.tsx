@@ -7,7 +7,7 @@
 
 import Constants from 'expo-constants';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
@@ -15,6 +15,9 @@ import { buildLanUrl, detectLanIp, resolveReachableUrl } from '@/services/reacha
 
 const QR_SIZE = 280;
 const QUIET_ZONE = 20;
+
+// Permanent GitHub Pages URL — works forever, no server needed
+const PERMANENT_URL = 'https://ojasvigoel598.github.io/FlightOps/';
 
 export default function QrScreen() {
   const [manualUrl, setManualUrl] = useState('');
@@ -35,6 +38,7 @@ export default function QrScreen() {
   }, []);
 
   const resolvedUrl = useCallback(() => {
+    // Primary: permanent GitHub Pages URL (works everywhere, forever)
     // 1. Try the origin directly (works on Freebuff preview / deployed URLs)
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
       const fromOrigin = resolveReachableUrl({ origin: window.location.origin });
@@ -47,12 +51,8 @@ export default function QrScreen() {
     }
     // 3. Try detected LAN IP
     if (detectedIp) return buildLanUrl(detectedIp);
-    // 4. Fall back to manual URL
-    if (manualUrl.trim()) {
-      const trimmed = manualUrl.trim();
-      return trimmed.startsWith('http') ? trimmed : `http://${trimmed}`;
-    }
-    return null;
+    // 4. Permanent fallback
+    return PERMANENT_URL;
   }, [detectedIp, manualUrl, refreshKey]); // refreshKey triggers re-evaluation
 
   const url = resolvedUrl();
@@ -117,8 +117,19 @@ export default function QrScreen() {
         </View>
       )}
 
+      <Pressable
+        onPress={() => {
+          if (Platform.OS === 'web' && typeof window !== 'undefined') {
+            window.open(PERMANENT_URL, '_blank');
+          }
+        }}
+        style={styles.playButton}
+      >
+        <Text style={styles.playButtonText}>🎮 Play Online — No Download</Text>
+      </Pressable>
+
       <Text style={styles.footer}>
-        Flight Ops — Aerospace Aircraft Design Simulator{'\n'}by Ojasvi Goel
+        Flight Ops — Aerospace Aircraft Design Simulator{'\n'}Permanent: {PERMANENT_URL}{'\n'}by Ojasvi Goel
       </Text>
     </View>
   );
@@ -155,5 +166,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2, marginTop: spacing.md, width: '100%',
   },
+  playButton: { backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl, alignItems: 'center', marginTop: spacing.md },
+  playButtonText: { color: '#000', fontSize: fontSize.md, fontWeight: fontWeight.bold },
   footer: { color: colors.textFaint, fontSize: fontSize.xs, textAlign: 'center', lineHeight: 16, marginTop: spacing.lg },
 });
