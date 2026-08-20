@@ -14,8 +14,8 @@ interface ChaseCameraProps {
   bank: number;
   /** Whether the aircraft is flying */
   flying: boolean;
-  /** Camera mode: 'chase' = behind, 'orbit' = cinematic, 'side' = flyby */
-  mode?: 'chase' | 'orbit' | 'side';
+  /** Camera mode: 'chase' = behind, 'orbit' = cinematic, 'side' = flyby, 'cockpit' = pilot view */
+  mode?: 'chase' | 'orbit' | 'side' | 'cockpit';
 }
 
 export default function ChaseCamera({
@@ -60,6 +60,18 @@ export default function ChaseCamera({
         t.z + behindDist,
       );
       desiredLookAt = t.clone().add(new THREE.Vector3(0, 1, 0));
+    } else if (mode === 'cockpit') {
+      // Cockpit — first-person pilot view
+      desiredPos = new THREE.Vector3(
+        t.x,
+        t.y + 0.6,
+        t.z + 2.5,
+      );
+      desiredLookAt = new THREE.Vector3(
+        t.x,
+        t.y + 0.3,
+        t.z - 20,
+      );
     } else if (mode === 'side') {
       // Side flyby — dramatic cinematic angle
       desiredPos = new THREE.Vector3(

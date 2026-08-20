@@ -2,7 +2,7 @@
 // Shows the CG position, neutral point, and the static margin between them.
 // Used in Engineering Mode (B24) for teaching stability concepts.
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 // ---------------------------------------------------------------------------
@@ -95,6 +95,8 @@ function StaticMarginLine({
   to: [number, number, number];
   isStable: boolean;
 }) {
+  const meshRef = useRef<THREE.Line>(null);
+
   const geometry = useMemo(() => {
     const points = [
       new THREE.Vector3(...from),
@@ -103,14 +105,17 @@ function StaticMarginLine({
     return new THREE.BufferGeometry().setFromPoints(points);
   }, [from, to]);
 
-  return (
-    <line geometry={geometry}>
-      <lineBasicMaterial
-        color={isStable ? '#4ADE80' : '#F87171'}
-        linewidth={2}
-      />
-    </line>
-  );
+  const LineObj = useMemo(() => {
+    const mat = new THREE.LineBasicMaterial({ color: isStable ? '#4ADE80' : '#F87171' });
+    const geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(...from),
+      new THREE.Vector3(...to),
+    ]);
+    const line = new THREE.Line(geo, mat);
+    return line;
+  }, [from, to, isStable]);
+
+  return <primitive object={LineObj} />;
 }
 
 // ---------------------------------------------------------------------------
