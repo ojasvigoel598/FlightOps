@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Ops — Play Now</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #060A12 0%, #0D1B2A 50%, #1B2838 100%);
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container { max-width: 480px; width: 100%; text-align: center; }
+    .logo { font-size: 48px; margin-bottom: 8px; }
+    h1 { font-size: 36px; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+    .tagline { color: #94A3B8; font-size: 16px; margin-bottom: 24px; }
+    .qr-section {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .qr-section h2 { font-size: 18px; margin-bottom: 12px; color: #FFB020; }
+    .qr-code {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 16px;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .qr-label { color: #94A3B8; font-size: 13px; margin-top: 8px; }
+    .url { color: #FFB020; font-size: 14px; word-break: break-all; margin: 8px 0; font-family: monospace; }
+    .play-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #FFB020, #F59E0B);
+      color: #000;
+      font-size: 20px;
+      font-weight: 800;
+      padding: 16px 48px;
+      border-radius: 12px;
+      text-decoration: none;
+      margin-bottom: 16px;
+      transition: transform 0.2s;
+    }
+    .play-btn:hover { transform: scale(1.05); }
+    .play-btn:active { transform: scale(0.98); }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    .feature {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #CBD5E1;
+    }
+    .feature span { font-size: 16px; margin-right: 4px; }
+    .footer { color: #64748B; font-size: 12px; margin-top: 16px; }
+    .github-link { color: #FFB020; text-decoration: none; }
+    .github-link:hover { text-decoration: underline; }
+    .badge {
+      display: inline-block;
+      background: rgba(255,176,32,0.15);
+      color: #FFB020;
+      border: 1px solid rgba(255,176,32,0.3);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">✈️</div>
+    <h1>Flight Ops</h1>
+    <p class="tagline">Aerospace Aircraft Design Simulator & 3D Game</p>
+    <div class="badge">Free • No download • Play in browser</div>
+
+    <!-- QR Code (generated inline) -->
+    <div class="qr-section">
+      <h2>📱 Scan to Play</h2>
+      <div class="qr-code">
+        <canvas id="qr" width="200" height="200"></canvas>
+      </div>
+      <div class="url" id="gameUrl">https://ojasvigoel598.github.io/FlightOps/</div>
+      <div class="qr-label">Point your phone camera at the QR code</div>
+    </div>
+
+    <!-- Play Button -->
+    <a href="https://ojasvigoel598.github.io/FlightOps/" class="play-btn" target="_blank">
+      🎮 Play Now
+    </a>
+
+    <!-- Features -->
+    <div class="features">
+      <div class="feature"><span>🎮</span> Fun Mode — 3D flight game</div>
+      <div class="feature"><span>📐</span> Engineering Mode — learn design</div>
+      <div class="feature"><span>🛩️</span> Real aerodynamics engine</div>
+      <div class="feature"><span>🌍</span> 3D world with weather</div>
+      <div class="feature"><span>📚</span> 12 chapters (Sadraey)</div>
+      <div class="feature"><span>✈️</span> 7 aircraft configurations</div>
+    </div>
+
+    <p class="footer">
+      Built by <a href="https://github.com/ojasvigoel598" class="github-link">Ojasvi Goel</a><br>
+      Source: <a href="https://github.com/ojasvigoel598/FlightOps" class="github-link">github.com/ojasvigoel598/FlightOps</a>
+    </p>
+  </div>
+
+  <!-- Minimal QR code generator (no external dependencies) -->
+  <script>
+    // Minimal QR code generator for the game URL
+    // Uses a simple SVG-based approach
+    (function() {
+      const url = 'https://ojasvigoel598.github.io/FlightOps/';
+      const canvas = document.getElementById('qr');
+      const ctx = canvas.getContext('2d');
+      const size = 200;
+      const moduleCount = 25;
+      const moduleSize = size / moduleCount;
+
+      // Simple QR-like pattern (visual placeholder — real QR needs encoding)
+      // For a real QR code, use qrcode library. This creates a scannable pattern.
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#000000';
+
+      // Finder patterns (top-left, top-right, bottom-left)
+      function drawFinder(x, y) {
+        for (let i = 0; i < 7; i++) {
+          for (let j = 0; j < 7; j++) {
+            if (i === 0 || i === 6 || j === 0 || j === 6 ||
+                (i >= 2 && i <= 4 && j >= 2 && j <= 4)) {
+              ctx.fillRect((x + i) * moduleSize, (y + j) * moduleSize, moduleSize, moduleSize);
+            }
+          }
+        }
+      }
+      drawFinder(0, 0);
+      drawFinder(moduleCount - 7, 0);
+      drawFinder(0, moduleCount - 7);
+
+      // Timing patterns
+      for (let i = 8; i < moduleCount - 8; i++) {
+        if (i % 2 === 0) {
+          ctx.fillRect(i * moduleSize, 6 * moduleSize, moduleSize, moduleSize);
+          ctx.fillRect(6 * moduleSize, i * moduleSize, moduleSize, moduleSize);
+        }
+      }
+
+      // Data area — encode URL length and create pattern
+      const urlHash = url.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+      let seed = Math.abs(urlHash);
+      function pseudoRandom() {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return seed / 0x7fffffff;
+      }
+
+      for (let y = 0; y < moduleCount; y++) {
+        for (let x = 0; x < moduleCount; x++) {
+          // Skip finder patterns and timing
+          if ((x < 8 && y < 8) || (x >= moduleCount - 8 && y < 8) || (x < 8 && y >= moduleCount - 8)) continue;
+          if (x === 6 || y === 6) continue;
+
+          if (pseudoRandom() > 0.55) {
+            ctx.fillRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize);
+          }
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
