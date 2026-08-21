@@ -9,7 +9,7 @@
 //   A15: Environmental parallax (wind streaks, moving clouds during flight)
 //   A16: Multiple fun-mode missions with objectives and mission browser
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas } from '@react-three/fiber';
 
@@ -34,6 +34,34 @@ import {
 import {
   computeMissionRequirements, PRESET_MISSIONS, type MissionType,
 } from '@/services/mission-design';
+
+// ---------------------------------------------------------------------------
+// Error boundary for3D Canvas (prevents blank screen if WebGL fails)
+// ---------------------------------------------------------------------------
+
+class CanvasErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
+  state = { hasError: false, error: '' };
+  static getDerivedStateFromError(err: Error) {
+    return { hasError: true, error: err.message };
+  }
+  componentDidCatch(err: Error, info: ErrorInfo) {
+    console.warn('3D Canvas error:', err, info.componentStack);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0D1B2A', padding: 20 }}>
+          <Text style={{ fontSize: 32, marginBottom: 8 }}>✈️</Text>
+          <Text style={{ color: '#FFB020', fontSize: 16, fontWeight: '700', marginBottom: 4 }}>3D View Unavailable</Text>
+          <Text style={{ color: '#94A3B8', fontSize: 13, textAlign: 'center', lineHeight: 18 }}>
+            WebGL may not be supported in this browser.{'\n'}The design panel below still works!
+          </Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Option cards
@@ -529,7 +557,8 @@ export default function FunMode() {
 
       {/* 3D Viewport */}
       <View style={s.viewport}>
-        <Canvas camera={{ position: [0, 12, 25], fov: 50 }} style={s.canvas} gl={{ antialias: true, alpha: false }}>
+        <CanvasErrorBoundary>
+        <Canvas camera={{ position: [0, 12, 25], fov: 50 }} style={s.canvas} gl={{ antialias: true, alpha: false }} onCreated={({ gl }) => { gl.setClearColor('#6CB4EE'); }}>
           <AircraftScene
             designParams={designParams}
             flying={flying}
@@ -541,6 +570,7 @@ export default function FunMode() {
             joystick={joystick}
           />
         </Canvas>
+        </CanvasErrorBoundary>
 
         {/* Camera mode toggle (A13) */}
         <View style={s.cameraToggle}>
