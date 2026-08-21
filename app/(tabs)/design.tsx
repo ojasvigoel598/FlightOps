@@ -7,7 +7,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Badge, Panel, Screen, ScreenHeader } from '@/components';
-import EngineeringMode from '@/components/EngineeringMode';
+import EngineeringSimulation from '@/components/EngineeringSimulation';
 import FunMode from '@/components/FunMode';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
 import { useLearningMode } from '@/contexts/ModeContext';
@@ -53,7 +53,7 @@ export default function DesignScreen() {
       </Panel>
 
       {/* Active mode content */}
-      {isFun ? <FunMode /> : <EngineeringMode />}
+      {isFun ? <FunMode /> : <EngineeringSimulation />}
     </Screen>
   );
 }
