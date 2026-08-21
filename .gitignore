@@ -46,3 +46,4 @@ __pycache__/
 
 # local reference material (copyrighted books must never be committed)
 *.pdf
+bun.lock
