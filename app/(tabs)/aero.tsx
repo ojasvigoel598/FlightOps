@@ -1,26 +1,50 @@
-// Powered by OnSpace.AI
 // Aero Lab: a live potential-flow workbench built on the validated
-// services/aero modules - NACA 4-digit geometry, source+vortex panel
-// method (Cp, CL), and unsteady aerodynamics (Theodorsen, Wagner).
-// All numbers are computed on device; the mathematics is cross-validated
-// against benchmarks in scripts/validate_aero.py.
+// services/aero modules - panel method (Cp, CL), and unsteady aerodynamics
+// (Theodorsen, Wagner). All numbers are computed on device.
+//
+// Now with XFoil/UIUC database integration — search any airfoil by name.
 
 import Slider from '@react-native-community/slider';
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Line, Polyline } from 'react-native-svg';
 
 import { AeroChart, type AeroSeries } from '@/components/feature/AeroChart';
 import { Badge, Panel, Screen, ScreenHeader } from '@/components';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
-import { generateAirfoil } from '@/services/aero/airfoil';
+import { generateAirfoil, type AirfoilPoint } from '@/services/aero/airfoil';
 import { buildPanels, solvePanelMethod } from '@/services/aero/panel';
 import { theodorsenLiftDeficiency, wagnerJones } from '@/services/aero/unsteady';
+import {
+  searchAirfoils,
+  fetchAirfoilCoords,
+  detectFamily,
+  type AirfoilEntry,
+  type AirfoilCoords,
+} from '@/services/aero/xfoil';
 
-const NACA_PRESETS = ['0012', '2412', '4415', '23012', '0006'];
 const PANELS = 120;
 const THIN_SLOPE = 2 * Math.PI;
 const ALPHA_MAX = 10;
+
+// ---------------------------------------------------------------------------
+// Quick-select presets (families)
+// ---------------------------------------------------------------------------
+
+const FAMILY_PRESETS = [
+  { label: 'NACA 0012', code: 'naca0012' },
+  { label: 'NACA 2412', code: 'naca2412' },
+  { label: 'NACA 4412', code: 'naca4412' },
+  { label: 'Clark Y', code: 'clarky' },
+  { label: 'Eppler 387', code: 'e387' },
+  { label: 'RAE 2822', code: 'rae2822' },
+  { label: 'Selig 1210', code: 's1210' },
+  { label: 'Wortmann', code: 'fx60100' },
+];
+
+// ---------------------------------------------------------------------------
+// Stat component
+// ---------------------------------------------------------------------------
 
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
@@ -39,6 +63,10 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
   );
 }
 
+// ---------------------------------------------------------------------------
+// Airfoil shape preview (SVG)
+// ---------------------------------------------------------------------------
+
 function AirfoilPreview({ points }: { points: Array<{ x: number; y: number }> }) {
   const [width, setWidth] = useState(0);
   const height = 120;
@@ -48,18 +76,14 @@ function AirfoilPreview({ points }: { points: Array<{ x: number; y: number }> })
   const px = (x: number) => pad + x * plotW;
   const py = (y: number) => pad + (0.15 - y) * (plotH / 0.3);
   const path = points.map((p) => `${px(p.x)},${py(p.y)}`).join(' ');
+
   return (
     <View style={{ height }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       {width > 0 && (
         <Svg width={width} height={height}>
           <Line
-            x1={px(0)}
-            y1={py(0)}
-            x2={px(1)}
-            y2={py(0)}
-            stroke={colors.borderStrong}
-            strokeWidth={1}
-            strokeDasharray="4 4"
+            x1={px(0)} y1={py(0)} x2={px(1)} y2={py(0)}
+            stroke={colors.borderStrong} strokeWidth={1} strokeDasharray="4 4"
           />
           <Polyline points={path} fill="none" stroke={colors.primary} strokeWidth={1.6} />
         </Svg>
@@ -68,21 +92,100 @@ function AirfoilPreview({ points }: { points: Array<{ x: number; y: number }> })
   );
 }
 
-export default function AeroScreen() {
-  const [codeDraft, setCodeDraft] = useState('0012');
-  const [alpha, setAlpha] = useState(0);
-  const code = /^\d{4}$/.test(codeDraft) ? codeDraft : '0012';
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
-  // Main solve: geometry + panel method at the current angle of attack.
+export default function AeroScreen() {
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<AirfoilEntry[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [selectedName, setSelectedName] = useState('naca0012');
+  const [selectedDisplayName, setSelectedDisplayName] = useState('NACA 0012');
+  const [isLoading, setIsLoading] = useState(false);
+  const [xfoilCoords, setXfoilCoords] = useState<AirfoilCoords | null>(null);
+  const [alpha, setAlpha] = useState(0);
+
+  // Search when query changes
+  useEffect(() => {
+    if (searchQuery.trim().length === 0) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+    const results = searchAirfoils(searchQuery);
+    setSearchResults(results);
+    setShowResults(results.length > 0);
+  }, [searchQuery]);
+
+  // Select an airfoil from search results
+  const selectAirfoil = useCallback(async (entry: AirfoilEntry) => {
+    setSelectedName(entry.name);
+    setSelectedDisplayName(entry.displayName);
+    setSearchQuery('');
+    setShowResults(false);
+    setIsLoading(true);
+
+    try {
+      const coords = await fetchAirfoilCoords(entry.name);
+      setXfoilCoords(coords);
+    } catch {
+      setXfoilCoords(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Select from quick presets
+  const selectPreset = useCallback(async (name: string) => {
+    setSelectedName(name);
+    const entry = searchAirfoils(name)[0];
+    setSelectedDisplayName(entry?.displayName ?? name);
+    setIsLoading(true);
+
+    try {
+      const coords = await fetchAirfoilCoords(name);
+      setXfoilCoords(coords);
+    } catch {
+      setXfoilCoords(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Generate airfoil geometry for panel method
+  // If we have XFoil coords, use them; otherwise generate NACA
+  const points = useMemo(() => {
+    if (xfoilCoords && xfoilCoords.all.length > 10) {
+      return xfoilCoords.all;
+    }
+    // For NACA 4-digit codes, generate locally
+    if (/^\d{4}$/.test(selectedName.replace('naca', ''))) {
+      return generateAirfoil(selectedName.replace('naca', ''), PANELS);
+    }
+    // For XFoil names, try to use the coords
+    if (xfoilCoords && xfoilCoords.all.length > 0) {
+      return xfoilCoords.all;
+    }
+    // Fallback to NACA 0012
+    return generateAirfoil('0012', PANELS);
+  }, [selectedName, xfoilCoords]);
+
+  // Panel method solve
   const model = useMemo(() => {
-    const points = generateAirfoil(code, PANELS);
+    if (points.length < 5) {
+      // Not enough points for panel method
+      return null;
+    }
     const geom = buildPanels(points);
     const sol = solvePanelMethod(geom, alpha);
     return { points, geom, sol };
-  }, [code, alpha]);
+  }, [points, alpha]);
 
-  // Cp split into upper/lower surfaces, sorted by chord station.
+  // Cp series
   const cpSeries = useMemo(() => {
+    if (!model) return { upper: [], lower: [] };
     const n = model.geom.xc.length;
     const upper: Array<[number, number]> = [];
     const lower: Array<[number, number]> = [];
@@ -96,9 +199,9 @@ export default function AeroScreen() {
     return { upper, lower };
   }, [model]);
 
-  // Lift curve: panel method vs thin-airfoil theory.
+  // Lift curve
   const liftCurve = useMemo(() => {
-    const points = generateAirfoil(code, PANELS);
+    if (!model) return { curve: [], thin: [] };
     const geom = buildPanels(points);
     const curve: Array<[number, number]> = [];
     for (let a = -ALPHA_MAX; a <= ALPHA_MAX + 0.001; a += 2.5) {
@@ -109,9 +212,9 @@ export default function AeroScreen() {
       thin.push([a, THIN_SLOPE * Math.sin((a * Math.PI) / 180)]);
     }
     return { curve, thin };
-  }, [code]);
+  }, [points]);
 
-  // Unsteady: Theodorsen deficiency |C(k)| and Wagner indicial w(s).
+  // Unsteady
   const unsteady = useMemo(() => {
     const def: Array<[number, number]> = [];
     for (let i = 0; i <= 30; i += 1) {
@@ -127,8 +230,8 @@ export default function AeroScreen() {
     return { def, wagner, at03, w1: wagnerJones(1), w5: wagnerJones(5) };
   }, []);
 
-  const { sol } = model;
-  const kuttaResidual = Math.abs(sol.vt[0] + sol.vt[sol.vt.length - 1]);
+  const sol = model?.sol;
+  const kuttaResidual = sol ? Math.abs(sol.vt[0] + sol.vt[sol.vt.length - 1]) : 0;
 
   const cpChartSeries: AeroSeries[] = [
     { points: cpSeries.upper, color: colors.primary },
@@ -149,38 +252,103 @@ export default function AeroScreen() {
     { points: unsteady.wagner, color: colors.accent },
   ];
 
+  const family = detectFamily(selectedName);
+
   return (
     <Screen>
       <ScreenHeader
         eyebrow="Aero Lab"
-        title="Potential Flow"
-        subtitle="Panel method, Cp, CL, Theodorsen and Wagner — computed live on device."
-        right={<Badge label={code} tone="primary" />}
+        title="Airfoil Database"
+        subtitle="Search XFoil/UIUC — any airfoil, panel method, Cp, CL, Theodorsen."
+        right={<Badge label={family} tone="primary" />}
       />
 
+      {/* XFoil Search Bar */}
       <Panel
-        title="Airfoil"
-        subtitle="NACA 4-digit section geometry"
-        right={
-          <TextInput
-            value={codeDraft}
-            onChangeText={setCodeDraft}
-            keyboardType="number-pad"
-            maxLength={4}
-            placeholder="2412"
-            placeholderTextColor={colors.textFaint}
-            style={styles.input}
-          />
-        }
+        title="🔍 Search Airfoils"
+        subtitle="Type to search the XFoil/UIUC database (100+ airfoils)"
       >
-        <View style={styles.chips}>
-          {NACA_PRESETS.map((p) => (
-            <Chip key={p} label={p} selected={code === p} onPress={() => setCodeDraft(p)} />
-          ))}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={(text) => {
+              setSearchQuery(text);
+              if (text.length > 0) setShowResults(true);
+            }}
+            placeholder="Search: Clark Y, Eppler 387, Wortmann, Selig..."
+            placeholderTextColor={colors.textFaint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            onFocus={() => { if (searchResults.length > 0) setShowResults(true); }}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => { setSearchQuery(''); setShowResults(false); }} style={styles.clearBtn}>
+              <Text style={styles.clearBtnText}>✕</Text>
+            </Pressable>
+          )}
         </View>
-        <AirfoilPreview points={model.points} />
+
+        {/* Search Results Dropdown */}
+        {showResults && searchResults.length > 0 && (
+          <View style={styles.resultsDropdown}>
+            <ScrollView style={styles.resultsScroll} nestedScrollEnabled>
+              {searchResults.slice(0, 15).map((entry) => (
+                <Pressable
+                  key={entry.name}
+                  style={[styles.resultItem, selectedName === entry.name && styles.resultItemActive]}
+                  onPress={() => selectAirfoil(entry)}
+                >
+                  <Text style={styles.resultName}>{entry.displayName}</Text>
+                  <Text style={styles.resultFamily}>{detectFamily(entry.name)}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {showResults && searchResults.length === 0 && searchQuery.length > 0 && (
+          <View style={styles.noResults}>
+            <Text style={styles.noResultsText}>No airfoils found for "{searchQuery}"</Text>
+          </View>
+        )}
+
+        {/* Loading indicator */}
+        {isLoading && (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.loadingText}>Fetching from UIUC database...</Text>
+          </View>
+        )}
+
+        {/* Current selection */}
+        <View style={styles.currentSelection}>
+          <Text style={styles.currentLabel}>Selected:</Text>
+          <Text style={styles.currentName}>{selectedDisplayName}</Text>
+          <Badge label={family} tone="accent" />
+        </View>
       </Panel>
 
+      {/* Quick presets */}
+      <Panel title="⚡ Quick Select" subtitle="Popular airfoils from different families.">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {FAMILY_PRESETS.map((p) => (
+            <Chip
+              key={p.code}
+              label={p.label}
+              selected={selectedName === p.code}
+              onPress={() => selectPreset(p.code)}
+            />
+          ))}
+        </ScrollView>
+      </Panel>
+
+      {/* Airfoil preview */}
+      <Panel title="📐 Airfoil Shape" subtitle={`${selectedDisplayName} — ${points.length} points`}>
+        <AirfoilPreview points={points} />
+      </Panel>
+
+      {/* Angle of attack */}
       <Panel
         title="Angle of attack"
         right={<Text style={styles.alphaValue}>{alpha.toFixed(1)}°</Text>}
@@ -197,24 +365,28 @@ export default function AeroScreen() {
         />
       </Panel>
 
-      <Panel
-        title="Pressure distribution"
-        subtitle={`−Cp vs x/c at α = ${alpha.toFixed(1)}°`}
-      >
-        <AeroChart series={cpChartSeries} xDomain={[0, 1]} height={190} />
-        <View style={styles.legend}>
-          <Text style={styles.legendKey}>
-            <Text style={{ color: colors.primary }}>■</Text> upper{'  '}
-            <Text style={{ color: colors.accent }}>■</Text> lower
-          </Text>
-        </View>
-        <View style={styles.stats}>
-          <Stat label="CL" value={sol.cl.toFixed(3)} color={colors.primary} />
-          <Stat label="Stag. Cp" value={Math.max(...sol.cp).toFixed(3)} color={colors.accent} />
-          <Stat label="Kutta res." value={kuttaResidual.toExponential(1)} color={colors.textSubtle} />
-        </View>
-      </Panel>
+      {/* Pressure distribution */}
+      {model && (
+        <Panel
+          title="Pressure distribution"
+          subtitle={`−Cp vs x/c at α = ${alpha.toFixed(1)}°`}
+        >
+          <AeroChart series={cpChartSeries} xDomain={[0, 1]} height={190} />
+          <View style={styles.legend}>
+            <Text style={styles.legendKey}>
+              <Text style={{ color: colors.primary }}>■</Text> upper{'  '}
+              <Text style={{ color: colors.accent }}>■</Text> lower
+            </Text>
+          </View>
+          <View style={styles.stats}>
+            <Stat label="CL" value={sol!.cl.toFixed(3)} color={colors.primary} />
+            <Stat label="Stag. Cp" value={Math.max(...sol!.cp).toFixed(3)} color={colors.accent} />
+            <Stat label="Kutta res." value={kuttaResidual.toExponential(1)} color={colors.textSubtle} />
+          </View>
+        </Panel>
+      )}
 
+      {/* Lift curve */}
       <Panel title="Lift curve" subtitle="CL vs α: panel method (solid) vs thin-airfoil 2π (dashed)">
         <AeroChart
           series={liftChartSeries}
@@ -224,6 +396,7 @@ export default function AeroScreen() {
         />
       </Panel>
 
+      {/* Unsteady */}
       <Panel title="Unsteady" subtitle="Theodorsen's lift deficiency and Wagner's indicial response">
         <Text style={styles.chartCaption}>|C(k)| — harmonic lift deficiency vs reduced frequency</Text>
         <AeroChart series={defChartSeries} xDomain={[0, 1.5]} yDomain={[0.4, 1.05]} height={150} />
@@ -247,26 +420,69 @@ export default function AeroScreen() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const styles = StyleSheet.create({
-  input: {
-    width: 64,
+  // Search
+  searchContainer: { position: 'relative', flexDirection: 'row', alignItems: 'center' },
+  searchInput: {
+    flex: 1,
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.borderStrong,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     color: colors.text,
     fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    textAlign: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
   },
-  chips: {
+  clearBtn: {
+    position: 'absolute', right: 8,
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: colors.backgroundAlt,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  clearBtnText: { color: colors.textFaint, fontSize: 12, fontWeight: '700' },
+  // Results dropdown
+  resultsDropdown: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.md,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  resultsScroll: { maxHeight: 200 },
+  resultItem: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
+  resultItemActive: { backgroundColor: 'rgba(255,176,32,0.1)' },
+  resultName: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  resultFamily: { color: colors.textFaint, fontSize: fontSize.xs },
+  noResults: { padding: spacing.md, alignItems: 'center' },
+  noResultsText: { color: colors.textFaint, fontSize: fontSize.sm },
+  // Loading
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  loadingText: { color: colors.textFaint, fontSize: fontSize.xs },
+  // Current selection
+  currentSelection: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: spacing.sm, paddingTop: spacing.sm,
+    borderTopWidth: 1, borderTopColor: colors.border,
+  },
+  currentLabel: { color: colors.textFaint, fontSize: fontSize.xs },
+  currentName: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold, flex: 1 },
+  // Chips
+  chips: { gap: spacing.sm },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -281,11 +497,13 @@ const styles = StyleSheet.create({
   },
   chipText: { color: colors.textSubtle, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   chipTextSelected: { color: colors.primary },
+  // Alpha
   alphaValue: {
     color: colors.primary,
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
   },
+  // Charts
   legend: { marginTop: spacing.xs, alignItems: 'flex-end' },
   legendKey: { color: colors.textFaint, fontSize: fontSize.xs },
   stats: {
