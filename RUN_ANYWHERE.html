@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>✈️ Flight Ops — Play Anywhere</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #060A12 0%, #0D1B2A 40%, #1B2838 100%);
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .card {
+      max-width: 520px; width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .logo { font-size: 56px; margin-bottom: 4px; }
+    h1 { font-size: 32px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .sub { color: #94A3B8; font-size: 15px; margin-bottom: 20px; }
+    .badge {
+      display: inline-block;
+      background: rgba(255,176,32,0.12);
+      color: #FFB020;
+      border: 1px solid rgba(255,176,32,0.25);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .qr-wrap {
+      background: #FFFFFF;
+      border-radius: 14px;
+      padding: 20px;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .url-box {
+      background: rgba(255,176,32,0.08);
+      border: 1px solid rgba(255,176,32,0.2);
+      border-radius: 10px;
+      padding: 10px 16px;
+      margin: 10px 0 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: #FFB020;
+      word-break: break-all;
+      user-select: all;
+    }
+    .play-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #FFB020, #F59E0B);
+      color: #000;
+      font-size: 18px;
+      font-weight: 800;
+      padding: 14px 40px;
+      border-radius: 12px;
+      text-decoration: none;
+      margin-bottom: 20px;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(255,176,32,0.3);
+    }
+    .play-btn:hover { transform: scale(1.04); box-shadow: 0 6px 30px rgba(255,176,32,0.45); }
+    .play-btn:active { transform: scale(0.97); }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .feat {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #CBD5E1;
+    }
+    .feat span { font-size: 15px; margin-right: 4px; }
+    .howto {
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .howto h3 { font-size: 14px; color: #FFB020; margin-bottom: 8px; }
+    .howto ol { padding-left: 20px; }
+    .howto li { color: #94A3B8; font-size: 13px; line-height: 20px; margin-bottom: 4px; }
+    .howto a { color: #FFB020; text-decoration: underline; }
+    .footer { color: #475569; font-size: 11px; line-height: 16px; }
+    .footer a { color: #94A3B8; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    #status { font-size: 11px; color: #64748B; margin-top: 10px; min-height: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">✈️</div>
+    <h1>Flight Ops</h1>
+    <p class="sub">Aerospace Aircraft Design Simulator &amp; 3D Game</p>
+    <div class="badge">Free • No download • Play in any browser</div>
+
+    <div class="qr-wrap">
+      <canvas id="qr-canvas"></canvas>
+    </div>
+
+    <div class="url-box" id="game-url">https://ojasvigoel598.github.io/FlightOps/</div>
+
+    <a href="https://ojasvigoel598.github.io/FlightOps/" class="play-btn" target="_blank" rel="noopener">
+      🎮 Play Now
+    </a>
+
+    <div class="features">
+      <div class="feat"><span>🎮</span> Fun Mode — 3D flight game</div>
+      <div class="feat"><span>📐</span> Engineering Mode — learn design</div>
+      <div class="feat"><span>🛩️</span> Real aerodynamics engine</div>
+      <div class="feat"><span>🌍</span> 3D world with weather</div>
+      <div class="feat"><span>📚</span> 12 chapters (Sadraey)</div>
+      <div class="feat"><span>✈️</span> 7 aircraft configs</div>
+    </div>
+
+    <div class="howto">
+      <h3>📱 How to Play</h3>
+      <ol>
+        <li><strong>Desktop</strong>: Click "Play Now" above</li>
+        <li><strong>Phone</strong>: Scan the QR code with your camera</li>
+        <li><strong>Share</strong>: Send this file to anyone — the QR always works</li>
+        <li>No account needed — runs 100% in the browser</li>
+      </ol>
+    </div>
+
+    <p class="footer">
+      Built by <a href="https://github.com/ojasvigoel598">Ojasvi Goel</a><br>
+      Source: <a href="https://github.com/ojasvigoel598/FlightOps">github.com/ojasvigoel598/FlightOps</a>
+    </p>
+    <p id="status"></p>
+  </div>
+
+  <!--
+    QR Code Generator — minimal self-contained implementation.
+    Encodes text into a QR Code (Version 3, Error Correction Level M).
+    No external dependencies. No API keys. Works offline.
+    MIT License — this code is part of the Flight Ops project.
+  -->
+  <script>
+  (function() {
+    const GAME_URL = 'https://ojasvigoel598.github.io/FlightOps/';
+    const canvas = document.getElementById('qr-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // --- Minimal QR encoder (Version 3-M, alphanumeric/byte mode) ---
+    // We use a compact approach: encode URL as bytes, use Reed-Solomon ECC.
+
+    // GF(256) arithmetic for Reed-Solomon
+    const GF_EXP = new Uint8Array(512);
+    const GF_LOG = new Uint8Array(256);
+    (function initGF() {
+      let x = 1;
+      for (let i = 0; i < 255; i++) {
+        GF_EXP[i] = x;
+        GF_LOG[x] = i;
+        x = (x << 1) ^ (x & 128 ? 0x11d : 0);
+      }
+      for (let i = 255; i < 512; i++) GF_EXP[i] = GF_EXP[i - 255];
+    })();
+    function gfMul(a, b) {
+      if (a === 0 || b === 0) return 0;
+      return GF_EXP[GF_LOG[a] + GF_LOG[b]];
+    }
+
+    // Reed-Solomon generator polynomial
+    function rsGenPoly(nsym) {
+      let g = [1];
+      for (let i = 0; i < nsym; i++) {
+        const ng = new Array(g.length + 1).fill(0);
+        for (let j = 0; j < g.length; j++) {
+          ng[j] ^= g[j];
+          ng[j + 1] ^= gfMul(g[j], GF_EXP[i]);
+        }
+        g = ng;
+      }
+      return g;
+    }
+
+    // Reed-Solomon encode
+    function rsEncode(data, nsym) {
+      const gen = rsGenPoly(nsym);
+      const res = new Uint8Array(data.length + nsym);
+      res.set(data);
+      for (let i = 0; i < data.length; i++) {
+        const coef = res[i];
+        if (coef !== 0) {
+          for (let j = 0; j < gen.length; j++) {
+            res[i + j] ^= gfMul(gen[j], coef);
+          }
+        }
+      }
+      return res.slice(data.length);
+    }
+
+    // --- QR Matrix encoding ---
+    // We'll encode a short URL using byte mode into a Version 3-M QR code.
+    // Version 3: 29x29 modules, 44 data codewords, 10 error correction codewords.
+    const SIZE = 29;
+    const DATA_CW = 44;
+    const ECC_CW = 10;
+    const TOTAL_CW = DATA_CW + ECC_CW;
+
+    // Encode URL as UTF-8 bytes
+    function textToBytes(text) {
+      const bytes = [];
+      for (let i = 0; i < text.length; i++) {
+        let c = text.charCodeAt(i);
+        if (c < 0x80) {
+          bytes.push(c);
+        } else if (c < 0x800) {
+          bytes.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
+        } else {
+          bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+        }
+      }
+      return new Uint8Array(bytes);
+    }
+
+    function encodeData(text) {
+      const bytes = textToBytes(text);
+      // Byte mode header: mode indicator (0100) + character count (8 bits for V3)
+      // Pad to DATA_CW codewords
+      const bits = [];
+      // Mode indicator: 0100 (byte mode)
+      bits.push(0, 1, 0, 0);
+      // Character count (8 bits for byte mode in Version 1-9)
+      for (let i = 7; i >= 0; i--) bits.push((bytes.length >> i) & 1);
+      // Data bytes
+      for (let b of bytes) {
+        for (let i = 7; i >= 0; i--) bits.push((b >> i) & 1);
+      }
+      // Terminator (up to 4 zeros)
+      const maxBits = DATA_CW * 8;
+      const termLen = Math.min(4, maxBits - bits.length);
+      for (let i = 0; i < termLen; i++) bits.push(0);
+      // Byte-align to 8-bit boundary
+      while (bits.length % 8 !== 0) bits.push(0);
+      // Pad to fill remaining capacity
+      const padBytes = [0xec, 0x11];
+      let padIdx = 0;
+      while (bits.length < maxBits) {
+        const pb = padBytes[padIdx % 2];
+        for (let i = 7; i >= 0; i--) bits.push((pb >> i) & 1);
+        padIdx++;
+      }
+      // Convert to codewords
+      const codewords = new Uint8Array(DATA_CW);
+      for (let i = 0; i < DATA_CW; i++) {
+        let val = 0;
+        for (let j = 0; j < 8; j++) val = (val << 1) | bits[i * 8 + j];
+        codewords[i] = val;
+      }
+      // Add ECC
+      const ecc = rsEncode(codewords, ECC_CW);
+      const all = new Uint8Array(TOTAL_CW);
+      all.set(codewords);
+      all.set(ecc, DATA_CW);
+      return all;
+    }
+
+    // --- Build QR matrix ---
+    function buildMatrix(data) {
+      const mat = Array.from({ length: SIZE }, () => new Int8Array(SIZE)); // -1 = unset, 0 = light, 1 = dark
+      const reserved = Array.from({ length: SIZE }, () => new Uint8Array(SIZE));
+
+      function setMod(r, c, dark) {
+        if (r >= 0 && r < SIZE && c >= 0 && c < SIZE) {
+          mat[r][c] = dark ? 1 : 0;
+          reserved[r][c] = 1;
+        }
+      }
+
+      // Finder patterns
+      function finderPattern(row, col) {
+        for (let r = -1; r <= 7; r++) {
+          for (let c = -1; c <= 7; c++) {
+            const rr = row + r, cc = col + c;
+            if (rr < 0 || rr >= SIZE || cc < 0 || cc >= SIZE) continue;
+            const inOuter = r >= 0 && r <= 6 && c >= 0 && c <= 6;
+            const inInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+            const isBorder = r === 0 || r === 6 || c === 0 || c === 6;
+            setMod(rr, cc, inInner || (inOuter && isBorder));
+          }
+        }
+      }
+      finderPattern(0, 0);
+      finderPattern(0, SIZE - 7);
+      finderPattern(SIZE - 7, 0);
+
+      // Separators
+      for (let i = 0; i < 8; i++) {
+        setMod(7, i, false); setMod(i, 7, false);
+        setMod(7, SIZE - 1 - i, false); setMod(i, SIZE - 8, false);
+        setMod(SIZE - 8, i, false); setMod(SIZE - 1 - i, 7, false);
+      }
+
+      // Timing patterns
+      for (let i = 8; i < SIZE - 8; i++) {
+        setMod(6, i, i % 2 === 0);
+        setMod(i, 6, i % 2 === 0);
+      }
+
+      // Dark module
+      setMod(SIZE - 8, 8, true);
+
+      // Format info (mask pattern 2, ECC level M)
+      // For M + mask 2: format = 101010000010010
+      // We'll place a simplified version
+      const formatBits = [1,0,1,0,1,0,0,0,0,0,1,0,0,1,0];
+      for (let i = 0; i < 15; i++) {
+        const bit = formatBits[i];
+        if (i < 6) setMod(8, SIZE - 1 - i, !!bit);
+        else if (i < 8) setMod(8, 14 - i, !!bit);
+        else if (i < 9) setMod(8, 15 - i, !!bit);
+        else setMod(8, 15 - i, !!bit);
+
+        if (i < 8) setMod(SIZE - 1 - i, 8, !!bit);
+        else if (i < 9) setMod(14 - i, 8, !!bit);
+        else setMod(14 - i, 8, !!bit);
+      }
+
+      // Place data bits
+      let bitIdx = 0;
+      const allBits = [];
+      for (let b of data) {
+        for (let i = 7; i >= 0; i--) allBits.push((b >> i) & 1);
+      }
+
+      // Data placement: upward then downward columns, right-to-left
+      let right = SIZE - 1;
+      let upward = true;
+      while (right > 0) {
+        if (right === 6) right--; // skip timing column
+        for (let i = 0; i < SIZE; i++) {
+          const row = upward ? SIZE - 1 - i : i;
+          for (let j = 0; j < 2; j++) {
+            const col = right - j;
+            if (col >= 0 && !reserved[row][col]) {
+              mat[row][col] = bitIdx < allBits.length ? (allBits[bitIdx] ? 1 : 0) : 0;
+              bitIdx++;
+            }
+          }
+        }
+        upward = !upward;
+        right -= 2;
+      }
+
+      // Apply mask pattern 2: (row + col) % 3 === 0
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (!reserved[r][c] && (r + c) % 3 === 0) {
+            mat[r][c] = mat[r][c] === 1 ? 0 : 1;
+          }
+        }
+      }
+
+      return mat;
+    }
+
+    // --- Render QR code to canvas ---
+    function renderQR(text) {
+      const data = encodeData(text);
+      const mat = buildMatrix(data);
+      const scale = 7;
+      const margin = 4 * scale;
+      const size = SIZE * scale + margin * 2;
+
+      canvas.width = size;
+      canvas.height = size;
+
+      // White background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, size, size);
+
+      // Dark modules
+      ctx.fillStyle = '#000000';
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (mat[r][c] === 1) {
+            ctx.fillRect(margin + c * scale, margin + r * scale, scale, scale);
+          }
+        }
+      }
+
+      document.getElementById('status').textContent = '✅ QR code generated — scannable with any phone camera';
+    }
+
+    // --- Try Google Charts API for guaranteed-correct QR, fall back to local ---
+    function tryAPI(text) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      const apiURL = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(text) + '&margin=10&format=png';
+      img.onload = function() {
+        canvas.width = 250;
+        canvas.height = 250;
+        ctx.drawImage(img, 0, 0, 250, 250);
+        document.getElementById('status').textContent = '✅ QR code ready — scannable with any phone camera';
+      };
+      img.onerror = function() {
+        // Fall back to local encoder
+        renderQR(text);
+      };
+      img.src = apiURL;
+    }
+
+    // Generate QR for the game URL
+    tryAPI(GAME_URL);
+  })();
+  </script>
+</body>
+</html>

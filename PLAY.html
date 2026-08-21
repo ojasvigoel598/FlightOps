@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flight Ops — Play Now</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #060A12 0%, #0D1B2A 50%, #1B2838 100%);
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container { max-width: 480px; width: 100%; text-align: center; }
+    .logo { font-size: 48px; margin-bottom: 8px; }
+    h1 { font-size: 36px; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+    .tagline { color: #94A3B8; font-size: 16px; margin-bottom: 24px; }
+    .qr-section {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .qr-section h2 { font-size: 18px; margin-bottom: 12px; color: #FFB020; }
+    .qr-code {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 16px;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .qr-label { color: #94A3B8; font-size: 13px; margin-top: 8px; }
+    .url { color: #FFB020; font-size: 14px; word-break: break-all; margin: 8px 0; font-family: monospace; }
+    .play-btn {
+      display: inline-block;
+      background: linear-gradient(135deg, #FFB020, #F59E0B);
+      color: #000;
+      font-size: 20px;
+      font-weight: 800;
+      padding: 16px 48px;
+      border-radius: 12px;
+      text-decoration: none;
+      margin-bottom: 16px;
+      transition: transform 0.2s;
+    }
+    .play-btn:hover { transform: scale(1.05); }
+    .play-btn:active { transform: scale(0.98); }
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 24px;
+      text-align: left;
+    }
+    .feature {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #CBD5E1;
+    }
+    .feature span { font-size: 16px; margin-right: 4px; }
+    .footer { color: #64748B; font-size: 12px; margin-top: 16px; }
+    .github-link { color: #FFB020; text-decoration: none; }
+    .github-link:hover { text-decoration: underline; }
+    .badge {
+      display: inline-block;
+      background: rgba(255,176,32,0.15);
+      color: #FFB020;
+      border: 1px solid rgba(255,176,32,0.3);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    #qr-status { font-size: 11px; color: #64748B; margin-top: 8px; min-height: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">✈️</div>
+    <h1>Flight Ops</h1>
+    <p class="tagline">Aerospace Aircraft Design Simulator & 3D Game</p>
+    <div class="badge">Free • No download • Play in browser</div>
+
+    <!-- QR Code (real, scannable) -->
+    <div class="qr-section">
+      <h2>📱 Scan to Play</h2>
+      <div class="qr-code">
+        <canvas id="qr" width="200" height="200"></canvas>
+      </div>
+      <div class="url">https://ojasvigoel598.github.io/FlightOps/</div>
+      <div class="qr-label">Point your phone camera at the QR code</div>
+      <div id="qr-status"></div>
+    </div>
+
+    <!-- Play Button -->
+    <a href="https://ojasvigoel598.github.io/FlightOps/" class="play-btn" target="_blank" rel="noopener">
+      🎮 Play Now
+    </a>
+
+    <!-- Features -->
+    <div class="features">
+      <div class="feature"><span>🎮</span> Fun Mode — 3D flight game</div>
+      <div class="feature"><span>📐</span> Engineering Mode — learn design</div>
+      <div class="feature"><span>🛩️</span> Real aerodynamics engine</div>
+      <div class="feature"><span>🌍</span> 3D world with weather</div>
+      <div class="feature"><span>📚</span> 12 chapters (Sadraey)</div>
+      <div class="feature"><span>✈️</span> 7 aircraft configurations</div>
+    </div>
+
+    <p class="footer">
+      Built by <a href="https://github.com/ojasvigoel598" class="github-link">Ojasvi Goel</a><br>
+      Source: <a href="https://github.com/ojasvigoel598/FlightOps" class="github-link">github.com/ojasvigoel598/FlightOps</a>
+    </p>
+  </div>
+
+  <!-- Real QR code generation using free API (no key needed) -->
+  <script>
+    (function() {
+      var url = 'https://ojasvigoel598.github.io/FlightOps/';
+      var canvas = document.getElementById('qr');
+      var ctx = canvas.getContext('2d');
+      var status = document.getElementById('qr-status');
+
+      // Try free QR API first (guaranteed correct), fall back to local encoder
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function() {
+        canvas.width = 200;
+        canvas.height = 200;
+        ctx.drawImage(img, 0, 0, 200, 200);
+        status.textContent = '✅ QR code ready';
+      };
+      img.onerror = function() {
+        status.textContent = '⚠️ QR API unavailable — use Play Now button';
+        // Draw a simple placeholder with the URL
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 200, 200);
+        ctx.fillStyle = '#000000';
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Scan failed —', 100, 90);
+        ctx.fillText('tap Play Now', 100, 110);
+      };
+      img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url) + '&margin=8&format=png';
+    })();
+  </script>
+</body>
+</html>
