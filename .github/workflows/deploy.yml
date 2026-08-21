@@ -47,6 +47,11 @@ jobs:
       - name: Export Expo web
         run: npx expo export --platform web
 
+      - name: Copy standalone play pages into dist
+        run: |
+          cp PLAY.html dist/PLAY.html 2>/dev/null || true
+          cp RUN_ANYWHERE.html dist/RUN_ANYWHERE.html 2>/dev/null || true
+
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
