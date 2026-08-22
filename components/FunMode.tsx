@@ -338,6 +338,12 @@ export default function FunMode() {
   const [integrity, setIntegrity] = useState(100);
   const flightRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Refs for flight state (avoid stale closures in setInterval)
+  const integrityRef = useRef(100);
+  const fuelUsedRef = useRef(0);
+  const distanceRef = useRef(0);
+  const eventLogRef = useRef<string[]>([]);
+
   // Active mission event (A12)
   const [activeEvent, setActiveEvent] = useState<ActiveEvent | null>(null);
   const [eventLog, setEventLog] = useState<string[]>([]);
@@ -406,6 +412,10 @@ export default function FunMode() {
 
     const cruiseSpeed = result.perf.cruiseSpeedMs;
     let progress = 0;
+    integrityRef.current = 100;
+    fuelUsedRef.current = 0;
+    distanceRef.current = 0;
+    eventLogRef.current = [];
 
     flightRef.current = setInterval(() => {
       progress += 0.005;
@@ -421,11 +431,13 @@ export default function FunMode() {
       setAltitude(currentAlt);
       setDistance(currentDist);
       setFuelUsed(prev => prev + 0.1 * joystick.throttle);
+      fuelUsedRef.current += 0.1 * joystick.throttle;
+      distanceRef.current = currentDist;
 
       // Check for weather events
       if (selectedMission.environment.events.length > 0) {
         for (const evt of selectedMission.environment.events) {
-          if (Math.abs(progress - evt.triggerProgress) < 0.01 && !eventLog.includes(evt.description)) {
+          if (Math.abs(progress - evt.triggerProgress) < 0.01 && !eventLogRef.current.includes(evt.description)) {
             setActiveEvent({
               type: evt.type,
               description: evt.description,
@@ -433,7 +445,8 @@ export default function FunMode() {
               timeLeft: evt.durationS,
               effect: getEventEffect(evt.type, evt.severity),
             });
-            setEventLog(prev => [...prev, evt.description]);
+            eventLogRef.current = [...eventLogRef.current, evt.description];
+            setEventLog([...eventLogRef.current]);
           }
         }
       }
@@ -451,8 +464,8 @@ export default function FunMode() {
         return { ...prev, timeLeft: newTime };
       });
 
-      // Check for auto-failures
-      if (integrity <= 0 || fuelUsed > 100) {
+      // Check for auto-failures (use refs to read latest values)
+      if (integrityRef.current <= 0 || fuelUsedRef.current > 100) {
         clearInterval(flightRef.current!);
         flightRef.current = null;
         finishFlight(false);
@@ -465,7 +478,7 @@ export default function FunMode() {
         setTimeout(() => finishFlight(true), 1000);
       }
     }, 30);
-  }, [flying, selectedMission, result, joystick.throttle, integrity, fuelUsed, distance, eventLog]);
+  }, [flying, selectedMission, result, joystick.throttle]);
 
   const finishFlight = useCallback((completed: boolean) => {
     const stats: Record<string, number> = {
