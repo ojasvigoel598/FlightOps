@@ -31,6 +31,11 @@ import {
   type FunFlightState, type EventEffects,
 } from '@/services/fun-flight';
 import {
+  initAudio, updateEngineSound, playWarning, playClick,
+  playMissionStart, playMissionComplete, playMissionFail,
+  toggleMute, isMuted, getVolumes,
+} from '@/services/audio-engine';
+import {
   computeMissionRequirements, PRESET_MISSIONS, type MissionType,
 } from '@/services/mission-design';
 
@@ -262,6 +267,8 @@ export default function FunMode() {
   // Mission result
   const [missionResult, setMissionResult] = useState<MissionResult | null>(null);
   const [showMissionBrowser, setShowMissionBrowser] = useState(true);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(false);
 
   const selectedMission = selectedMissionId ? FUN_MISSIONS.find(m => m.id === selectedMissionId) : null;
 
@@ -302,10 +309,28 @@ export default function FunMode() {
   useEffect(() => { flightStateRef.current = flightState; }, [flightState]);
 
   // -----------------------------------------------------------------------
+  // Audio init on first interaction
+  // -----------------------------------------------------------------------
+  const ensureAudio = useCallback(() => {
+    if (!audioEnabled) {
+      const ok = initAudio();
+      setAudioEnabled(ok);
+    }
+  }, [audioEnabled]);
+
+  const handleToggleMute = useCallback(() => {
+    ensureAudio();
+    const m = toggleMute();
+    setAudioMuted(m);
+  }, [ensureAudio]);
+
+  // -----------------------------------------------------------------------
   // Start flight — real physics
   // -----------------------------------------------------------------------
   const startFlight = useCallback(() => {
     if (flying || !selectedMission) return;
+    ensureAudio();
+    playMissionStart();
 
     const engineCount = PROP_PRESETS[propChoice]?.count ?? 1;
     const wind = selectedMission.environment;
@@ -354,6 +379,9 @@ export default function FunMode() {
       // Step physics
       let next = stepFunFlight(prev, input, wingChoice, propChoice, engineCount, DT, totalEffects);
 
+      // Update audio engine sound
+      updateEngineSound(next.throttle, next.airspeedMs, next.engineRunning);
+
       // Check for event triggers based on progress
       if (selectedMission) {
         for (const evt of selectedMission.environment.events) {
@@ -396,7 +424,9 @@ export default function FunMode() {
         if (selectedMission) {
           const res = computeMissionResult(selectedMission, stats);
           setMissionResult(res);
+          playMissionComplete();
         }
+        updateEngineSound(0, 0, false);
         setTimeout(() => { setFlying(false); setPaused(false); }, 2000);
       }
 
@@ -415,7 +445,9 @@ export default function FunMode() {
         if (selectedMission) {
           const res = computeMissionResult(selectedMission, stats);
           setMissionResult(res);
+          playMissionFail();
         }
+        updateEngineSound(0, 0, false);
         setTimeout(() => { setFlying(false); setPaused(false); }, 2000);
       }
 
@@ -460,6 +492,8 @@ export default function FunMode() {
   // Trigger manual engineering events
   // -----------------------------------------------------------------------
   const triggerEngineFailure = useCallback(() => {
+    ensureAudio();
+    playWarning('engine-failure');
     setEngineFailed(true);
     setFlightState(prev => {
       const next = { ...prev, engineFailed: true, failedEngine: 2 };
@@ -471,6 +505,8 @@ export default function FunMode() {
   }, []);
 
   const triggerIcing = useCallback(() => {
+    ensureAudio();
+    playWarning('icing');
     setFlightState(prev => {
       const next = { ...prev, icingLevel: Math.min(1, prev.icingLevel + 0.5) };
       flightStateRef.current = next;
@@ -565,8 +601,11 @@ export default function FunMode() {
           </Canvas>
         </CanvasErrorBoundary>
 
-        {/* Camera toggle + pause button */}
+        {/* Camera toggle + pause + audio */}
         <View style={s.topControls}>
+          <Pressable onPress={handleToggleMute} style={[s.camBtn]}> 
+            <Text style={s.camBtnText}>{audioMuted ? '🔇' : '🔊'}</Text>
+          </Pressable>
           <Pressable onPress={togglePause} style={[s.camBtn, paused && { backgroundColor: 'rgba(239,68,68,0.7)' }]}>
             <Text style={[s.camBtnText, paused && s.camBtnTextActive]}>{paused ? '▶' : '⏸'}</Text>
           </Pressable>
@@ -618,7 +657,7 @@ export default function FunMode() {
               <View key={cat}>
                 <Text style={s.catLabel}>{cat.toUpperCase()}</Text>
                 {missions.map(m => (
-                  <Pressable key={m.id} style={s.missionCard} onPress={() => { setSelectedMissionId(m.id); setShowMissionBrowser(false); }}>
+                  <Pressable key={m.id} style={s.missionCard} onPress={() => { ensureAudio(); playClick(); setSelectedMissionId(m.id); setShowMissionBrowser(false); }}>
                     <Text style={s.missionIcon}>{m.icon}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={s.missionName}>{m.name}</Text>
@@ -780,7 +819,7 @@ export default function FunMode() {
 
 function OptionCardH({ option, active, onPress }: { option: OptionCard; active: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[s.optionCard, active && s.optionCardActive]}>
+    <Pressable onPress={() => { playClick(); onPress(); }} style={[s.optionCard, active && s.optionCardActive]}>
       <Text style={s.optionIcon}>{option.icon}</Text>
       <Text style={[s.optionLabel, active && s.optionLabelActive]}>{option.label}</Text>
       {active ? <Text style={s.optionTip}>{option.tip}</Text> : null}
