@@ -271,7 +271,7 @@ with vitest just like Python unittest.
 
 | File | What it tests | How many tests |
 |---|---|---|
-| `aerodynamics.test.ts` | ISA atmosphere, NACA geometry, source panel Cp, vortex lattice lift, drag polar, Prandtl-Glauert. | 37 |
+| `aerodynamics.test.ts` | ISA atmosphere, NACA geometry, source panel Cp, vortex lattice lift, drag polar, Prandtl-Glauert, NACA 2412 wind-tunnel validation, BET propeller. | 55 |
 | `unsteady.test.ts` | Bessel functions, Theodorsen C(k), Wagner Φ(s), harmonic lift. | 23 |
 | `unsteady-vortex.test.ts` | Vortex blob dynamics. | 8 |
 | `mission-design.test.ts` | Preset missions, requirements computation, scoring, aircraft config defaults. | 15 |
@@ -281,7 +281,7 @@ with vitest just like Python unittest.
 | `reachable-url.test.ts` | URL validation. | 8 |
 | `math.test.ts` | Math utilities. | 7 |
 
-**Total: 127 tests, all passing.**
+**Total: 145 tests, all passing.**
 
 **To run tests**: `npm test` (or `npx vitest run`)
 
