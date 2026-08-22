@@ -227,7 +227,7 @@ export default function EngineeringSimulation() {
 
         // Step physics
         next = stepFlight(next, 0.05);
-        return { ...next, icingLevel: icingEvent ? Math.min(1, ((next as any).icingLevel ?? 0) + 0.01) : 0 } as any;
+        return { ...next, icingLevel: icingEvent ? Math.min(1, (next.icingLevel ?? 0) + 0.01) : 0 };
       });
     }, 50);
 
