@@ -520,3 +520,33 @@ Never:
 **MAKE ALL CHANGES → TEST EVERYTHING → COMMIT AT THE END.**
 
 The second workflow is prohibited.
+
+---
+
+# 21. GIT IDENTITY AND CONTRIBUTION POLICY
+
+**SOLE CONTRIBUTOR RULE:** `ojasvigoel598` is the sole contributor identity for this repository.
+
+AI agents (Codebuff, Claude, Claude Code, Codex, GitHub Actions, bot, AI) are development tools, not repository contributors.
+
+**NEVER** create commits under `codebuff-team`, `Codebuff`, `Claude`, `Claude Code`, `bot`, `AI`, `GitHub Actions`, or any other agent identity.
+
+**NEVER** change Git identity automatically.
+
+Before every commit, verify:
+```bash
+git config user.name
+git config user.email
+```
+
+If the identity is wrong or ambiguous, **STOP** and report it rather than guessing.
+
+Never create:
+- empty commits
+- placeholder commits
+- generated-only commits
+- unrelated commits
+- fake commits
+- commits merely to increase commit counts
+
+Every commit must correspond to an intentional repository change made by `ojasvigoel598`.
