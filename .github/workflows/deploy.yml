@@ -2,8 +2,13 @@
 # Runs on every push to main. Produces a permanent URL at:
 #   https://ojasvigoel598.github.io/FlightOps/
 #
-# Uses official GitHub Pages Actions — no manual branch config needed.
-# ONE-TIME SETUP: Go to Settings → Pages → Source → "GitHub Actions"
+# NO API keys needed. NO paid services. Works forever.
+#
+# SETUP (one-time):
+#   1. Go to https://github.com/ojasvigoel598/FlightOps/settings/pages
+#   2. Under "Source", select "Deploy from a branch"
+#   3. Under "Branch", select "gh-pages" / "/ (root)"
+#   4. Click Save
 
 name: Deploy to GitHub Pages
 
@@ -13,16 +18,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  build:
+  build-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -49,18 +52,9 @@ jobs:
           cp PLAY.html dist/PLAY.html 2>/dev/null || true
           cp RUN_ANYWHERE.html dist/RUN_ANYWHERE.html 2>/dev/null || true
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          keep_files: true
