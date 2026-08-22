@@ -231,7 +231,8 @@ export default function EngineeringSimulation() {
     return () => {
       if (flightRef.current) clearInterval(flightRef.current);
     };
-  }, [isFlying, flightState, engineFailure, icingEvent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFlying, engineFailure, icingEvent]);  // flightState accessed via functional update, no need in deps
 
   // Stop flight when shutdown phase reached
   useEffect(() => {
