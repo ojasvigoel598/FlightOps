@@ -288,6 +288,8 @@ export interface FlightSimState {
   gearDown: boolean;
   flapDeg: number;
   brakeOn: boolean;
+  // Environmental
+  icingLevel: number; // 0 = none, 1 = full ice
   // Mass
   massKg: number;
   fuelKg: number;
@@ -318,7 +320,7 @@ export function createInitialState(params: {
     airspeedMs: 0, vsiMs: 0, heading: 0,
     pitch: 0, roll: 0, aoa: 0,
     throttle: 0, engineRunning: false, engineFailed: false, failedEngine: 0,
-    gearDown: true, flapDeg: 0, brakeOn: true,
+    gearDown: true, flapDeg: 0, brakeOn: true, icingLevel: 0,
     massKg: params.massKg, fuelKg: params.fuelKg,
     currentPhase: 'PREFLIGHT', timeInPhase: 0, totalTime: 0,
     windMs: params.windMs ?? 5, windDirDeg: params.windDirDeg ?? 270,
