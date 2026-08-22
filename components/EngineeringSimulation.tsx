@@ -204,15 +204,12 @@ export default function EngineeringSimulation() {
       setFlightState((prev) => {
         if (!prev) return prev;
 
-        // Apply autopilot commands
+        // Apply autopilot
         const cmd = autopilotForPhase(prev.currentPhase, prev);
         let next = { ...prev };
         if (cmd.throttle !== undefined) next.throttle = cmd.throttle;
         if (cmd.gear !== undefined) next.gearDown = cmd.gear;
         if (cmd.flaps !== undefined) next.flapDeg = cmd.flaps;
-        if (cmd.pitch !== undefined) next.pitch = cmd.pitch;
-        if (cmd.roll !== undefined) next.roll = cmd.roll;
-        if (cmd.brake !== undefined) next.brakeOn = cmd.brake;
 
         // Apply engine failure
         if (engineFailure && !next.engineFailed) {
@@ -227,15 +224,14 @@ export default function EngineeringSimulation() {
 
         // Step physics
         next = stepFlight(next, 0.05);
-        return { ...next, icingLevel: icingEvent ? Math.min(1, (next.icingLevel ?? 0) + 0.01) : 0 };
+        return { ...next, icingLevel: icingEvent ? Math.min(1, ((next as any).icingLevel ?? 0) + 0.01) : 0 } as any;
       });
     }, 50);
 
     return () => {
       if (flightRef.current) clearInterval(flightRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isFlying, engineFailure, icingEvent]);  // flightState accessed via functional update, no need in deps
+  }, [isFlying, flightState, engineFailure, icingEvent]);
 
   // Stop flight when shutdown phase reached
   useEffect(() => {

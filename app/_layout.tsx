@@ -3,8 +3,6 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AlertProvider } from '@/template';
 import { GameProvider } from '@/contexts/GameContext';
-import { ModeProvider } from '@/contexts/ModeContext';
-import { ModelBProvider } from '@/contexts/ModelBContext';
 import { colors } from '@/constants/theme';
 
 export default function RootLayout() {
@@ -12,20 +10,17 @@ export default function RootLayout() {
     <AlertProvider>
       <SafeAreaProvider>
         <GameProvider>
-          <ModeProvider>
-            <ModelBProvider>
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.background },
-              }}
-            >
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="mission" options={{ gestureEnabled: false }} />
-              <Stack.Screen name="result" options={{ gestureEnabled: false }} />
-            </Stack>            </ModelBProvider>
-          </ModeProvider>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          >
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="mission" options={{ gestureEnabled: false }} />
+            <Stack.Screen name="result" options={{ gestureEnabled: false }} />
+          </Stack>
         </GameProvider>
       </SafeAreaProvider>
     </AlertProvider>

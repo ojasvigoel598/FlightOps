@@ -1,8 +1,13 @@
 // Fun Mode — Complete 3D aircraft design game.
 //
-// V2: Real state-driven flight physics replaces scripted flightProgress.
-//     Joystick controls → flight dynamics → aircraft state → world position.
-//     Added: pause/resume, event reset, proper multi-engine propellers.
+// Features:
+//   A10: Interactive joystick/touch flight controls (throttle + elevator + rudder)
+//   A11: Weather system (rain, wind streaks, storm clouds, turbulence)
+//   A12: Mission events (engine failure, stall, icing, crosswind, wind shear)
+//   A13: Cockpit camera view
+//   A14: Scoring/ranking with grades (S/A/B/C/D/F)
+//   A15: Environmental parallax (wind streaks, moving clouds during flight)
+//   A16: Multiple fun-mode missions with objectives and mission browser
 
 import { Component, type ErrorInfo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -20,33 +25,28 @@ import {
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
 import {
   computeMassBreakdown, computePerformance, defaultFuselageConfig,
-  defaultPropulsionConfig, defaultTailConfig, type TailConfig,
+  defaultPropulsionConfig, defaultTailConfig, PropulsionType, TailConfig,
 } from '@/services/aircraft-config';
 import {
   FUN_MISSIONS, type FunMission, type MissionResult,
   computeMissionResult, evaluateObjective,
 } from '@/services/fun-missions';
 import {
-  createFunFlightState, stepFunFlight, getFlightRenderState,
-  type FunFlightState, type EventEffects,
-} from '@/services/fun-flight';
-import {
-  initAudio, updateEngineSound, playWarning, playClick,
-  playMissionStart, playMissionComplete, playMissionFail,
-  toggleMute, isMuted, getVolumes,
-} from '@/services/audio-engine';
-import {
   computeMissionRequirements, PRESET_MISSIONS, type MissionType,
 } from '@/services/mission-design';
 
 // ---------------------------------------------------------------------------
-// Error boundary for3D Canvas
+// Error boundary for3D Canvas (prevents blank screen if WebGL fails)
 // ---------------------------------------------------------------------------
 
-class CanvasErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
-  componentDidCatch(err: Error, info: ErrorInfo) { console.warn('3D Canvas error:', err, info.componentStack); }
+class CanvasErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
+  state = { hasError: false, error: '' };
+  static getDerivedStateFromError(err: Error) {
+    return { hasError: true, error: err.message };
+  }
+  componentDidCatch(err: Error, info: ErrorInfo) {
+    console.warn('3D Canvas error:', err, info.componentStack);
+  }
   render() {
     if (this.state.hasError) {
       return (
@@ -67,7 +67,13 @@ class CanvasErrorBoundary extends Component<{ children: ReactNode }, { hasError:
 // Option cards
 // ---------------------------------------------------------------------------
 
-interface OptionCard { id: string; label: string; icon: string; tip: string; tag: string; }
+interface OptionCard {
+  id: string;
+  label: string;
+  icon: string;
+  tip: string;
+  tag: string;
+}
 
 const WING_OPTIONS: OptionCard[] = [
   { id: 'short', label: 'Short & Stubby', icon: '✈️', tip: 'Fast and sleek, but needs a long runway to take off.', tag: 'Fast' },
@@ -75,6 +81,7 @@ const WING_OPTIONS: OptionCard[] = [
   { id: 'long', label: 'Long & Slender', icon: '🦅', tip: 'Glides beautifully and uses less fuel, but is fragile.', tag: 'Efficient' },
   { id: 'wide', label: 'Extra Wide', icon: '🪂', tip: 'Lifts heavy loads easily, but is slow.', tag: 'Heavy lift' },
 ];
+
 const TAIL_OPTIONS: OptionCard[] = [
   { id: 'conventional', label: 'Normal Tail', icon: '✈️', tip: 'The classic design. Stable, predictable, easy to fly.', tag: 'Reliable' },
   { id: 't-tail', label: 'T-Tail', icon: '🔷', tip: 'Tail sits on top. Cleaner airflow, used on many jets.', tag: 'Clean' },
@@ -82,12 +89,14 @@ const TAIL_OPTIONS: OptionCard[] = [
   { id: 'canard', label: 'Canard', icon: '🐦', tip: 'Small wing in front! Prevents stalls and looks futuristic.', tag: 'Safe' },
   { id: 'none', label: 'No Tail', icon: '🔲', tip: 'Flying wing. Maximum efficiency, needs computer control.', tag: 'Advanced' },
 ];
+
 const PROP_OPTIONS: OptionCard[] = [
   { id: 'piston', label: 'Propeller (Piston)', icon: '⚙️', tip: 'Simple and cheap. Good for small planes and trainers.', tag: 'Simple' },
   { id: 'turboprop', label: 'Turboprop', icon: '💨', tip: 'Powerful propeller driven by a turbine. Fast and reliable.', tag: 'Fast prop' },
   { id: 'turbofan', label: 'Jet Engine', icon: '🚀', tip: 'Pure thrust! Fast but thirsty. Used on airliners.', tag: 'Speed' },
   { id: 'electric', label: 'Electric Motor', icon: '⚡', tip: 'Quiet and green. Limited by battery weight today.', tag: 'Green' },
 ];
+
 const AIRFOIL_OPTIONS: OptionCard[] = [
   { id: 'naca0012', label: 'Symmetric', icon: '↔️', tip: 'Same shape top and bottom. Great for aerobatics.', tag: 'Aerobatic' },
   { id: 'naca2412', label: 'Mild Curve', icon: '〰️', tip: 'Slight curve helps cruise. The Cessna 172 uses this.', tag: 'GA' },
@@ -100,43 +109,127 @@ const AIRFOIL_OPTIONS: OptionCard[] = [
 // ---------------------------------------------------------------------------
 
 const WING_PRESETS: Record<string, { spanM: number; areaM2: number }> = {
-  short: { spanM: 8, areaM2: 12 }, medium: { spanM: 10, areaM2: 16 },
-  long: { spanM: 14, areaM2: 18 }, wide: { spanM: 12, areaM2: 24 },
+  short: { spanM: 8, areaM2: 12 },
+  medium: { spanM: 10, areaM2: 16 },
+  long: { spanM: 14, areaM2: 18 },
+  wide: { spanM: 12, areaM2: 24 },
 };
-const PROP_PRESETS: Record<string, { type: string; powerW: number; count: number }> = {
+
+const PROP_PRESETS: Record<string, { type: PropulsionType; powerW: number; count: number }> = {
   piston: { type: 'piston', powerW: 150_000, count: 1 },
   turboprop: { type: 'turboprop', powerW: 500_000, count: 1 },
   turbofan: { type: 'turbofan', powerW: 0, count: 2 },
   electric: { type: 'electric', powerW: 200_000, count: 1 },
 };
+
 const MISSION_PRESETS: Record<string, MissionType> = {
-  trainer: 'trainer', cargo: 'cargo', surveillance: 'surveillance',
-  'high-speed': 'high-speed', agricultural: 'agricultural',
+  trainer: 'trainer',
+  cargo: 'cargo',
+  surveillance: 'surveillance',
+  'high-speed': 'high-speed',
+  agricultural: 'agricultural',
 };
 
 type CameraMode = 'chase' | 'orbit' | 'side' | 'cockpit';
 
 // ---------------------------------------------------------------------------
-// 3D Scene — now reads from physics state, not scripted curves
+// Joystick state
+// ---------------------------------------------------------------------------
+
+interface JoystickState {
+  throttle: number;   // 0-1
+  elevator: number;   // -1 to 1 (pitch input)
+  rudder: number;     // -1 to 1 (yaw input)
+}
+
+// ---------------------------------------------------------------------------
+// Active mission event
+// ---------------------------------------------------------------------------
+
+interface ActiveEvent {
+  type: string;
+  description: string;
+  severity: number;
+  timeLeft: number;
+  effect: {
+    dragMultiplier: number;
+    liftMultiplier: number;
+    thrustMultiplier: number;
+    integrityDamage: number;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 3D Scene
 // ---------------------------------------------------------------------------
 
 function AircraftScene({
-  designParams, flightState, cameraMode, propChoice,
-  weather, activeEvent, engineFailed, enginesRunning,
+  designParams, flying, flightProgress, cameraMode, propChoice,
+  weather, activeEvent, joystick,
 }: {
   designParams: ReturnType<typeof buildDesignParams>;
-  flightState: FunFlightState;
+  flying: boolean;
+  flightProgress: number;
   cameraMode: CameraMode;
   propChoice: string;
   weather: FunMission['environment'];
-  activeEvent: EventEffects | null;
-  engineFailed: boolean;
-  enginesRunning: boolean[];
+  activeEvent: ActiveEvent | null;
+  joystick: JoystickState;
 }) {
-  const render = getFlightRenderState(flightState);
-  const flying = flightState.totalTime > 0 && flightState.flightProgress < 1;
-  const throttle = flying ? flightState.throttle : 0;
-  const isHighAlt = render.isHighAlt;
+  const position: [number, number, number] = useMemo(() => {
+    if (!flying) return [0, 1.2, 0];
+
+    if (flightProgress < 0.15) {
+      const t = flightProgress / 0.15;
+      return [joystick.rudder * 3, 1.2, t * -30];
+    }
+    if (flightProgress < 0.4) {
+      const t = (flightProgress - 0.15) / 0.25;
+      const liftOff = Math.max(0, t - 0.4);
+      return [joystick.rudder * 5, 1.2 + liftOff * 40, -30 - t * 80];
+    }
+    if (flightProgress < 0.7) {
+      const t = (flightProgress - 0.4) / 0.3;
+      return [joystick.rudder * 8, 20 + t * 20, -110 - t * 60];
+    }
+    const t = (flightProgress - 0.7) / 0.3;
+    const windDrift = weather.windMs * 0.3 * Math.sin(t * Math.PI * 3);
+    return [
+      Math.sin(t * Math.PI * 2) * 30 + joystick.rudder * 15 + windDrift,
+      40 + Math.sin(t * Math.PI) * 5 + joystick.elevator * 8,
+      -170 - t * 100,
+    ];
+  }, [flying, flightProgress, joystick.elevator, joystick.rudder, weather.windMs]);
+
+  const pitch = useMemo(() => {
+    if (!flying) return 0;
+    if (flightProgress < 0.15) return 0;
+    if (flightProgress < 0.4) {
+      const t = (flightProgress - 0.15) / 0.25;
+      return Math.min(t * 0.4, 0.3) + joystick.elevator * 0.15;
+    }
+    if (flightProgress < 0.7) {
+      const t = (flightProgress - 0.4) / 0.3;
+      return 0.15 * (1 - t) + joystick.elevator * 0.1;
+    }
+    return joystick.elevator * 0.2;
+  }, [flying, flightProgress, joystick.elevator]);
+
+  const bank = useMemo(() => {
+    if (!flying) return 0;
+    if (flightProgress < 0.7) return joystick.rudder * 0.05;
+    const t = (flightProgress - 0.7) / 0.3;
+    return Math.sin(t * Math.PI * 2) * 0.2 + joystick.rudder * 0.3;
+  }, [flying, flightProgress, joystick.rudder]);
+
+  const flightSpeed = flying
+    ? flightProgress < 0.15 ? joystick.throttle * 0.3
+      : flightProgress < 0.4 ? 0.3 + joystick.throttle * 0.5
+        : 0.5 + joystick.throttle * 0.5
+    : 0;
+
+  const throttle = flying ? joystick.throttle : 0;
+  const isHighAlt = flying && flightProgress > 0.5;
 
   const enginePositions = useMemo(() => {
     const sp = designParams.spanM * 0.25;
@@ -150,7 +243,7 @@ function AircraftScene({
   const rainCount = weather.turbulence > 0.3 ? Math.floor(weather.turbulence * 200) : 0;
   const showWind = weather.windMs > 5;
   const showStorm = weather.visibility < 0.7;
-  const icingActive = flightState.icingLevel > 0;
+  const icingActive = activeEvent?.type === 'icing';
 
   return (
     <>
@@ -166,30 +259,41 @@ function AircraftScene({
       <Trees count={35} />
       <WindIndicator windMs={weather.windMs} direction={weather.windDirDeg} />
 
+      {/* Weather effects */}
       <Rain count={rainCount} intensity={weather.turbulence} />
       <WindStreaks windMs={weather.windMs} windDirDeg={weather.windDirDeg} active={showWind && flying} />
       <StormClouds visibility={weather.visibility} />
 
-      <ChaseCamera target={render.position} pitch={render.pitch} bank={render.bank} flying={flying} mode={cameraMode} />
+      <ChaseCamera
+        target={position}
+        pitch={pitch}
+        bank={bank}
+        flying={flying}
+        mode={cameraMode}
+      />
 
-      <group position={render.position} rotation={[render.pitch, 0, render.bank]}>
-        <AircraftModel design={{ ...designParams, flightSpeed: render.flightSpeed, pitch: 0, bank: 0, failedEngine: engineFailed ? 2 : 0, enginesRunning }} />
+      {/* Aircraft with icing overlay */}
+      <group position={position} rotation={[pitch, 0, bank]}>
+        <AircraftModel design={{ ...designParams, flightSpeed, pitch: 0, bank: 0 }} />
 
-        {icingActive && (
+        {/* Icing overlay */}
+        {icingActive && activeEvent && (
           <mesh position={[0, 0.05, 0]}>
             <boxGeometry args={[designParams.spanM * 0.9, 0.06, 1.8]} />
-            <meshStandardMaterial color="#B8D4E8" transparent opacity={0.15 + flightState.icingLevel * 0.3} />
+            <meshStandardMaterial color="#B8D4E8" transparent opacity={0.15 + activeEvent.severity * 0.06} />
           </mesh>
         )}
 
+        {/* Engine exhaust */}
         {enginePositions.map((pos, i) => (
-          <EngineExhaust key={`ex-${i}`} position={pos} throttle={enginesRunning[i] ? throttle : 0} direction={[0, 0.05, -1]} />
+          <EngineExhaust key={`ex-${i}`} position={pos} throttle={throttle} direction={[0, 0.05, -1]} />
         ))}
 
+        {/* Wingtip contrails at high altitude */}
         {isHighAlt && (
           <>
-            <WingtipContrail position={[designParams.spanM / 2, 0, 0.5]} active={isHighAlt} speed={render.flightSpeed * 250} />
-            <WingtipContrail position={[-designParams.spanM / 2, 0, 0.5]} active={isHighAlt} speed={render.flightSpeed * 250} />
+            <WingtipContrail position={[designParams.spanM / 2, 0, 0.5]} active={isHighAlt} speed={flightSpeed * 250} />
+            <WingtipContrail position={[-designParams.spanM / 2, 0, 0.5]} active={isHighAlt} speed={flightSpeed * 250} />
           </>
         )}
       </group>
@@ -198,35 +302,11 @@ function AircraftScene({
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helper
 // ---------------------------------------------------------------------------
 
 function fmt(n: number, d = 1): string {
   return n.toLocaleString('en-GB', { minimumFractionDigits: d, maximumFractionDigits: d });
-}
-
-function getEventEffect(type: string, severity: number): EventEffects {
-  const s = severity;
-  switch (type) {
-    case 'gust': return { dragMultiplier: 1 + s * 0.1, liftMultiplier: 1 - s * 0.05, thrustMultiplier: 1, integrityDamage: s * 0.3 };
-    case 'crosswind': return { dragMultiplier: 1 + s * 0.15, liftMultiplier: 1, thrustMultiplier: 1, integrityDamage: s * 0.2 };
-    case 'icing': return { dragMultiplier: 1 + s * 0.2, liftMultiplier: 1 - s * 0.1, thrustMultiplier: 1 - s * 0.03, integrityDamage: s * 0.5 };
-    case 'wind_shear': return { dragMultiplier: 1 + s * 0.25, liftMultiplier: 1 - s * 0.15, thrustMultiplier: 1, integrityDamage: s * 0.4 };
-    case 'thunderstorm': return { dragMultiplier: 1 + s * 0.3, liftMultiplier: 1 - s * 0.1, thrustMultiplier: 1 - s * 0.05, integrityDamage: s * 0.8 };
-    default: return { dragMultiplier: 1, liftMultiplier: 1, thrustMultiplier: 1, integrityDamage: 0 };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Active event UI type
-// ---------------------------------------------------------------------------
-
-interface ActiveEventUI {
-  type: string;
-  description: string;
-  severity: number;
-  timeLeft: number;
-  effect: EventEffects;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,31 +324,35 @@ export default function FunMode() {
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
   const [cameraMode, setCameraMode] = useState<CameraMode>('chase');
 
-  // Joystick state
-  const [joystick, setJoystick] = useState({ throttle: 0.5, elevator: 0, rudder: 0 });
+  // Joystick state (A10)
+  const [joystick, setJoystick] = useState<JoystickState>({ throttle: 0.5, elevator: 0, rudder: 0 });
 
-  // Flight state — driven by physics
-  const [flightState, setFlightState] = useState<FunFlightState>(() =>
-    createFunFlightState({ wingId: 'medium', propId: 'turboprop', engineCount: 1, windMs: 3, windDirDeg: 270, payloadKg: 500 })
-  );
+  // Flight state
   const [flying, setFlying] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [flightProgress, setFlightProgress] = useState(0);
+  const [flightTime, setFlightTime] = useState(0);
+  const [maxSpeed, setMaxSpeed] = useState(0);
+  const [distance, setDistance] = useState(0);
+  const [altitude, setAltitude] = useState(0);
+  const [fuelUsed, setFuelUsed] = useState(0);
+  const [integrity, setIntegrity] = useState(100);
   const flightRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const flightStateRef = useRef<FunFlightState>(flightState);
 
-  // Engine state
-  const [engineFailed, setEngineFailed] = useState(false);
-  const [enginesRunning, setEnginesRunning] = useState<boolean[]>([true]);
+  // Refs for flight state (avoid stale closures in setInterval)
+  const integrityRef = useRef(100);
+  const fuelUsedRef = useRef(0);
+  const distanceRef = useRef(0);
+  const eventLogRef = useRef<string[]>([]);
 
-  // Active mission event
-  const [activeEvent, setActiveEvent] = useState<ActiveEventUI | null>(null);
+  // Active mission event (A12)
+  const [activeEvent, setActiveEvent] = useState<ActiveEvent | null>(null);
   const [eventLog, setEventLog] = useState<string[]>([]);
 
-  // Mission result
+  // Mission result (A14)
   const [missionResult, setMissionResult] = useState<MissionResult | null>(null);
+
+  // Mission browser visibility
   const [showMissionBrowser, setShowMissionBrowser] = useState(true);
-  const [audioEnabled, setAudioEnabled] = useState(false);
-  const [audioMuted, setAudioMuted] = useState(false);
 
   const selectedMission = selectedMissionId ? FUN_MISSIONS.find(m => m.id === selectedMissionId) : null;
 
@@ -276,8 +360,10 @@ export default function FunMode() {
   const result = useMemo(() => {
     const wingPreset = WING_PRESETS[wingChoice] || WING_PRESETS.medium;
     const propPreset = PROP_PRESETS[propChoice] || PROP_PRESETS.turboprop;
-    const mission = PRESET_MISSIONS[MISSION_PRESETS.trainer];
+    const missionType = MISSION_PRESETS.trainer;
+    const mission = PRESET_MISSIONS[missionType];
     const requirements = computeMissionRequirements(mission);
+
     const wing = {
       spanM: wingPreset.spanM, areaM2: wingPreset.areaM2, taperRatio: 0.6,
       sweepDeg: propChoice === 'turbofan' ? 25 : 2, dihedralDeg: 3, incidenceDeg: 2,
@@ -285,16 +371,19 @@ export default function FunMode() {
     };
     const tail: TailConfig = { ...defaultTailConfig(), configuration: tailChoice as TailConfig['configuration'] };
     const prop = {
-      ...defaultPropulsionConfig(), type: propPreset.type as 'turboprop', count: propPreset.count,
+      ...defaultPropulsionConfig(), type: propPreset.type, count: propPreset.count,
       powerW: propPreset.powerW, engineMassKg: propPreset.type === 'turbofan' ? 2000 : 120,
       propDiameterM: propPreset.type === 'turbofan' ? 0 : 2.5,
       propEfficiency: propPreset.type === 'turbofan' ? 0.85 : 0.82,
       sfc: propPreset.type === 'turbofan' ? 0.06 / 3600 : 0.55 / 3600,
     };
+
     const mass = computeMassBreakdown(wing, tail, defaultFuselageConfig(), prop, mission.payloadKg, requirements.fuelMassKg);
     const config = { name: mission.name, wing, tail, fuselage: defaultFuselageConfig(), propulsion: prop, mass };
     const perf = computePerformance(config);
-    return { perf, feasible: perf.rangeKm >= mission.rangeKm, mission, requirements, stallSpeed: perf.stallSpeedMs };
+    const feasible = perf.rangeKm >= mission.rangeKm;
+
+    return { perf, feasible, mission, requirements, stallSpeed: perf.stallSpeedMs };
   }, [wingChoice, tailChoice, propChoice, airfoilChoice]);
 
   const designParams = useMemo(() => {
@@ -305,220 +394,124 @@ export default function FunMode() {
     });
   }, [wingChoice, tailChoice, propChoice, airfoilChoice, flying]);
 
-  // Sync ref
-  useEffect(() => { flightStateRef.current = flightState; }, [flightState]);
-
-  // -----------------------------------------------------------------------
-  // Audio init on first interaction
-  // -----------------------------------------------------------------------
-  const ensureAudio = useCallback(() => {
-    if (!audioEnabled) {
-      const ok = initAudio();
-      setAudioEnabled(ok);
-    }
-  }, [audioEnabled]);
-
-  const handleToggleMute = useCallback(() => {
-    ensureAudio();
-    const m = toggleMute();
-    setAudioMuted(m);
-  }, [ensureAudio]);
-
-  // -----------------------------------------------------------------------
-  // Start flight — real physics
-  // -----------------------------------------------------------------------
+  // Start flight
   const startFlight = useCallback(() => {
     if (flying || !selectedMission) return;
-    ensureAudio();
-    playMissionStart();
-
-    const engineCount = PROP_PRESETS[propChoice]?.count ?? 1;
-    const wind = selectedMission.environment;
-
-    const initialState = createFunFlightState({
-      wingId: wingChoice, propId: propChoice, engineCount,
-      windMs: wind.windMs, windDirDeg: wind.windDirDeg, payloadKg: 500,
-    });
-
-    setFlightState(initialState);
-    flightStateRef.current = initialState;
     setFlying(true);
-    setPaused(false);
-    setEngineFailed(false);
-    setEnginesRunning(Array(engineCount).fill(true));
+    setFlightProgress(0);
+    setFlightTime(0);
+    setMaxSpeed(0);
+    setDistance(0);
+    setAltitude(0);
+    setFuelUsed(0);
+    setIntegrity(100);
     setActiveEvent(null);
     setEventLog([]);
     setMissionResult(null);
     setShowMissionBrowser(false);
-    setJoystick({ throttle: 0.5, elevator: 0, rudder: 0 });
 
-    const DT = 0.033; // ~30fps physics step
-    let missionTime = 0;
-    let triggeredEvents = new Set<string>();
+    const cruiseSpeed = result.perf.cruiseSpeedMs;
+    let progress = 0;
+    integrityRef.current = 100;
+    fuelUsedRef.current = 0;
+    distanceRef.current = 0;
+    eventLogRef.current = [];
 
     flightRef.current = setInterval(() => {
-      const prev = flightStateRef.current;
-      if (prev.paused || prev.flightProgress >= 1) return;
+      progress += 0.005;
+      setFlightProgress(progress);
+      setFlightTime(prev => prev + 0.03);
 
-      // Build input from joystick
-      const input = {
-        throttle: joystick.throttle,
-        pitchInput: joystick.elevator,
-        yawInput: joystick.rudder,
-        gearDown: prev.gearDown,
-        flapDeg: prev.flapDeg,
-        brake: prev.brakeOn,
-      };
+      // Compute flight stats
+      const currentSpeed = cruiseSpeed * joystick.throttle * (progress < 0.15 ? 0.3 : progress < 0.4 ? 0.6 : 1);
+      const currentAlt = progress < 0.15 ? 0 : progress < 0.4 ? (progress - 0.15) / 0.25 * 500 : 500 + (progress - 0.4) / 0.3 * 3000;
+      const currentDist = distance + currentSpeed * 0.03 / 1000;
 
-      // Accumulate event effects
-      let totalEffects: EventEffects | null = null;
-      if (activeEvent) {
-        totalEffects = activeEvent.effect;
-      }
+      setMaxSpeed(prev => Math.max(prev, currentSpeed));
+      setAltitude(currentAlt);
+      setDistance(currentDist);
+      setFuelUsed(prev => prev + 0.1 * joystick.throttle);
+      fuelUsedRef.current += 0.1 * joystick.throttle;
+      distanceRef.current = currentDist;
 
-      // Step physics
-      let next = stepFunFlight(prev, input, wingChoice, propChoice, engineCount, DT, totalEffects);
-
-      // Update audio engine sound
-      updateEngineSound(next.throttle, next.airspeedMs, next.engineRunning);
-
-      // Check for event triggers based on progress
-      if (selectedMission) {
+      // Check for weather events
+      if (selectedMission.environment.events.length > 0) {
         for (const evt of selectedMission.environment.events) {
-          if (Math.abs(next.flightProgress - evt.triggerProgress) < 0.015 && !triggeredEvents.has(evt.description)) {
-            triggeredEvents.add(evt.description);
-            const effect = getEventEffect(evt.type, evt.severity);
-            setActiveEvent({ type: evt.type, description: evt.description, severity: evt.severity, timeLeft: evt.durationS, effect });
-            setEventLog(prev => [...prev, evt.description]);
+          if (Math.abs(progress - evt.triggerProgress) < 0.01 && !eventLogRef.current.includes(evt.description)) {
+            setActiveEvent({
+              type: evt.type,
+              description: evt.description,
+              severity: evt.severity,
+              timeLeft: evt.durationS,
+              effect: getEventEffect(evt.type, evt.severity),
+            });
+            eventLogRef.current = [...eventLogRef.current, evt.description];
+            setEventLog([...eventLogRef.current]);
           }
         }
       }
 
-      // Process active event countdown
-      if (activeEvent) {
-        const newTime = activeEvent.timeLeft - DT;
-        if (newTime <= 0) {
-          setActiveEvent(null);
-        } else {
-          setActiveEvent(prev => prev ? { ...prev, timeLeft: newTime } : null);
-        }
-      }
+      // Process active event effects
+      setActiveEvent(prev => {
+        if (!prev) return null;
+        const newTime = prev.timeLeft - 0.03;
+        if (newTime <= 0) return null;
 
-      missionTime += DT;
+        // Apply integrity damage
+        setIntegrity(i => Math.max(0, i - prev.effect.integrityDamage * 0.03));
+        setFuelUsed(f => f + prev.effect.dragMultiplier * 0.05);
 
-      // Check completion
-      if (next.flightProgress >= 1) {
-        next = { ...next, flightProgress: 1 };
+        return { ...prev, timeLeft: newTime };
+      });
+
+      // Check for auto-failures (use refs to read latest values)
+      if (integrityRef.current <= 0 || fuelUsedRef.current > 100) {
         clearInterval(flightRef.current!);
         flightRef.current = null;
-
-        const fuelPct = next.fuelKg > 0 ? 80 : 20;
-        const stats: Record<string, number> = {
-          altitude: next.altitudeM, distance: next.distanceFlown / 1000,
-          maxSpeed: next.airspeedMs * 3.6, flightTime: missionTime,
-          fuelUsedKg: 300 - next.fuelKg, fuelRemainingPct: fuelPct,
-          landed: next.integrity > 0 ? 1 : 0, integrity: next.integrity,
-          cruiseSpeed: next.airspeedMs, takeoffDist: 400,
-          maxG: 1 + Math.abs(joystick.elevator) * 3,
-        };
-        if (selectedMission) {
-          const res = computeMissionResult(selectedMission, stats);
-          setMissionResult(res);
-          playMissionComplete();
-        }
-        updateEngineSound(0, 0, false);
-        setTimeout(() => { setFlying(false); setPaused(false); }, 2000);
+        finishFlight(false);
       }
 
-      // Check failure
-      if (next.integrity <= 0 || next.fuelKg <= 0) {
+      if (progress >= 1) {
+        progress = 1;
         clearInterval(flightRef.current!);
         flightRef.current = null;
-        const stats: Record<string, number> = {
-          altitude: next.altitudeM, distance: next.distanceFlown / 1000,
-          maxSpeed: next.airspeedMs * 3.6, flightTime: missionTime,
-          fuelUsedKg: 300 - next.fuelKg, fuelRemainingPct: 0,
-          landed: 0, integrity: next.integrity,
-          cruiseSpeed: next.airspeedMs, takeoffDist: 400,
-          maxG: 1 + Math.abs(joystick.elevator) * 3,
-        };
-        if (selectedMission) {
-          const res = computeMissionResult(selectedMission, stats);
-          setMissionResult(res);
-          playMissionFail();
-        }
-        updateEngineSound(0, 0, false);
-        setTimeout(() => { setFlying(false); setPaused(false); }, 2000);
+        setTimeout(() => finishFlight(true), 1000);
       }
+    }, 30);
+  }, [flying, selectedMission, result, joystick.throttle]);
 
-      setFlightState(next);
-      flightStateRef.current = next;
-    }, 33);
-  }, [flying, selectedMission, propChoice, wingChoice, joystick.throttle, joystick.elevator, joystick.rudder, activeEvent]);
+  const finishFlight = useCallback((completed: boolean) => {
+    const stats: Record<string, number> = {
+      altitude,
+      distance,
+      maxSpeed,
+      flightTime,
+      fuelUsedKg: fuelUsed,
+      fuelRemainingPct: Math.max(0, 100 - fuelUsed),
+      landed: completed && integrity > 0 ? 1 : 0,
+      integrity,
+      cruiseSpeed: result.perf.cruiseSpeedMs * joystick.throttle,
+      takeoffDist: 400,
+      maxG: 1 + Math.abs(joystick.elevator) * 3,
+    };
 
-  // Cleanup
+    if (selectedMission) {
+      const res = computeMissionResult(selectedMission, stats);
+      setMissionResult(res);
+    }
+
+    setTimeout(() => {
+      setFlying(false);
+      setFlightProgress(0);
+      setActiveEvent(null);
+    }, 2000);
+  }, [altitude, distance, maxSpeed, flightTime, fuelUsed, integrity, result, joystick, selectedMission]);
+
   useEffect(() => {
     return () => { if (flightRef.current) clearInterval(flightRef.current); };
   }, []);
 
-  // -----------------------------------------------------------------------
-  // Pause / Resume
-  // -----------------------------------------------------------------------
-  const togglePause = useCallback(() => {
-    setPaused(prev => {
-      const next = !prev;
-      setFlightState(s => ({ ...s, paused: next }));
-      flightStateRef.current = { ...flightStateRef.current, paused: next };
-      return next;
-    });
-  }, []);
-
-  // -----------------------------------------------------------------------
-  // Event Reset
-  // -----------------------------------------------------------------------
-  const resetEvent = useCallback(() => {
-    setActiveEvent(null);
-    setFlightState(prev => {
-      const next = { ...prev, icingLevel: 0, engineFailed: false, failedEngine: 0 };
-      flightStateRef.current = next;
-      return next;
-    });
-    setEngineFailed(false);
-    const engineCount = PROP_PRESETS[propChoice]?.count ?? 1;
-    setEnginesRunning(Array(engineCount).fill(true));
-  }, [propChoice]);
-
-  // -----------------------------------------------------------------------
-  // Trigger manual engineering events
-  // -----------------------------------------------------------------------
-  const triggerEngineFailure = useCallback(() => {
-    ensureAudio();
-    playWarning('engine-failure');
-    setEngineFailed(true);
-    setFlightState(prev => {
-      const next = { ...prev, engineFailed: true, failedEngine: 2 };
-      flightStateRef.current = next;
-      return next;
-    });
-    setEnginesRunning(prev => prev.map((r, i) => i === 1 ? false : r));
-    setEventLog(prev => [...prev, 'Engine 2 failure triggered']);
-  }, []);
-
-  const triggerIcing = useCallback(() => {
-    ensureAudio();
-    playWarning('icing');
-    setFlightState(prev => {
-      const next = { ...prev, icingLevel: Math.min(1, prev.icingLevel + 0.5) };
-      flightStateRef.current = next;
-      return next;
-    });
-    setActiveEvent({ type: 'icing', description: 'Ice accumulating on wings', severity: 3, timeLeft: 10, effect: getEventEffect('icing', 3) });
-    setEventLog(prev => [...prev, 'Icing event triggered']);
-  }, []);
-
-  // -----------------------------------------------------------------------
-  // Joystick handlers
-  // -----------------------------------------------------------------------
+  // Joystick input handlers (A10)
   const adjustThrottle = (delta: number) => {
     setJoystick(j => ({ ...j, throttle: Math.max(0, Math.min(1, j.throttle + delta)) }));
   };
@@ -529,16 +522,9 @@ export default function FunMode() {
     setJoystick(j => ({ ...j, rudder: Math.max(-1, Math.min(1, j.rudder + delta)) }));
   };
 
-  // Derived HUD values from physics state
-  const hudAlt = Math.round(flightState.altitudeM);
-  const hudSpd = Math.round(flightState.airspeedMs * 3.6);
-  const hudFuel = Math.round((flightState.fuelKg / 300) * 100);
-  const hudDist = (flightState.distanceFlown / 1000).toFixed(1);
-  const hudIntegrity = Math.round(flightState.integrity);
-
   return (
     <View style={s.container}>
-      {/* Mission result overlay */}
+      {/* Mission result overlay (A14) */}
       {missionResult && (
         <View style={s.resultOverlay}>
           <View style={s.resultCard}>
@@ -549,13 +535,11 @@ export default function FunMode() {
             <Text style={s.resultSub}>
               {missionResult.objectivesMet}/{missionResult.totalObjectives} objectives • {missionResult.creditsEarned} credits
             </Text>
-            {selectedMission?.objectives.map((obj) => {
+            {selectedMission?.objectives.map((obj, i) => {
               const met = evaluateObjective(obj, {
-                altitude: hudAlt, distance: parseFloat(hudDist), maxSpeed: hudSpd,
-                flightTime: flightState.totalTime, fuelUsedKg: 300 - flightState.fuelKg,
-                fuelRemainingPct: hudFuel, landed: missionResult.completed ? 1 : 0,
-                integrity: hudIntegrity, cruiseSpeed: flightState.airspeedMs,
-                takeoffDist: 400, maxG: 1 + Math.abs(joystick.elevator) * 3,
+                altitude, distance, maxSpeed, flightTime, fuelUsedKg: fuelUsed,
+                fuelRemainingPct: Math.max(0, 100 - fuelUsed), landed: missionResult.completed ? 1 : 0,
+                integrity, cruiseSpeed: result.perf.cruiseSpeedMs, takeoffDist: 400, maxG: 1 + Math.abs(joystick.elevator) * 3,
               });
               return (
                 <Text key={obj.id} style={[s.resultObj, { color: met ? '#4ADE80' : '#F87171' }]}>
@@ -570,7 +554,7 @@ export default function FunMode() {
         </View>
       )}
 
-      {/* Event notification */}
+      {/* Event notification (A12) */}
       {activeEvent && (
         <View style={[s.eventBanner, { borderLeftColor: activeEvent.severity >= 4 ? '#EF4444' : activeEvent.severity >= 2 ? '#F59E0B' : '#3B82F6' }]}>
           <Text style={s.eventIcon}>
@@ -579,7 +563,7 @@ export default function FunMode() {
           </Text>
           <View style={{ flex: 1 }}>
             <Text style={s.eventText}>{activeEvent.description}</Text>
-            <Text style={s.eventSeverity}>Severity {activeEvent.severity}/5 • {activeEvent.timeLeft.toFixed(1)}s</Text>
+            <Text style={s.eventSeverity}>Severity {activeEvent.severity}/5</Text>
           </View>
         </View>
       )}
@@ -587,28 +571,22 @@ export default function FunMode() {
       {/* 3D Viewport */}
       <View style={s.viewport}>
         <CanvasErrorBoundary>
-          <Canvas camera={{ position: [0, 12, 25], fov: 50 }} style={s.canvas} gl={{ antialias: true, alpha: false }} onCreated={({ gl }) => { gl.setClearColor('#6CB4EE'); }}>
-            <AircraftScene
-              designParams={designParams}
-              flightState={flightState}
-              cameraMode={cameraMode}
-              propChoice={propChoice}
-              weather={selectedMission?.environment ?? { windMs: 3, windDirDeg: 270, visibility: 1, turbulence: 0.1, tempDeviationC: 0, events: [] }}
-              activeEvent={activeEvent?.effect ?? null}
-              engineFailed={engineFailed}
-              enginesRunning={enginesRunning}
-            />
-          </Canvas>
+        <Canvas camera={{ position: [0, 12, 25], fov: 50 }} style={s.canvas} gl={{ antialias: true, alpha: false }} onCreated={({ gl }) => { gl.setClearColor('#6CB4EE'); }}>
+          <AircraftScene
+            designParams={designParams}
+            flying={flying}
+            flightProgress={flightProgress}
+            cameraMode={cameraMode}
+            propChoice={propChoice}
+            weather={selectedMission?.environment ?? { windMs: 3, windDirDeg: 270, visibility: 1, turbulence: 0.1, tempDeviationC: 0, events: [] }}
+            activeEvent={activeEvent}
+            joystick={joystick}
+          />
+        </Canvas>
         </CanvasErrorBoundary>
 
-        {/* Camera toggle + pause + audio */}
-        <View style={s.topControls}>
-          <Pressable onPress={handleToggleMute} style={[s.camBtn]}> 
-            <Text style={s.camBtnText}>{audioMuted ? '🔇' : '🔊'}</Text>
-          </Pressable>
-          <Pressable onPress={togglePause} style={[s.camBtn, paused && { backgroundColor: 'rgba(239,68,68,0.7)' }]}>
-            <Text style={[s.camBtnText, paused && s.camBtnTextActive]}>{paused ? '▶' : '⏸'}</Text>
-          </Pressable>
+        {/* Camera mode toggle (A13) */}
+        <View style={s.cameraToggle}>
           {(['chase', 'orbit', 'side', 'cockpit'] as CameraMode[]).map((m) => (
             <Pressable key={m} onPress={() => setCameraMode(m)} style={[s.camBtn, cameraMode === m && s.camBtnActive]}>
               <Text style={[s.camBtnText, cameraMode === m && s.camBtnTextActive]}>
@@ -618,19 +596,18 @@ export default function FunMode() {
           ))}
         </View>
 
-        {/* Flight HUD — driven by physics state */}
+        {/* Flight HUD */}
         {flying && (
           <View style={s.flightOverlay}>
             <View style={s.hudRow}>
-              <View style={s.hudItem}><Text style={s.hudLabel}>SPD</Text><Text style={s.hudValue}>{hudSpd} km/h</Text></View>
-              <View style={s.hudItem}><Text style={s.hudLabel}>ALT</Text><Text style={s.hudValue}>{hudAlt} m</Text></View>
-              <View style={s.hudItem}><Text style={s.hudLabel}>DST</Text><Text style={s.hudValue}>{hudDist} km</Text></View>
-              <View style={s.hudItem}><Text style={s.hudLabel}>FUEL</Text><Text style={s.hudValue}>{hudFuel}%</Text></View>
-              <View style={s.hudItem}><Text style={s.hudLabel}>AC</Text><Text style={s.hudValue}>{hudIntegrity}%</Text></View>
-              {paused && <View style={s.hudItem}><Text style={[s.hudValue, { color: '#EF4444' }]}>PAUSED</Text></View>}
+              <View style={s.hudItem}><Text style={s.hudLabel}>SPD</Text><Text style={s.hudValue}>{fmt(maxSpeed * 3.6, 0)} km/h</Text></View>
+              <View style={s.hudItem}><Text style={s.hudLabel}>ALT</Text><Text style={s.hudValue}>{fmt(altitude, 0)} m</Text></View>
+              <View style={s.hudItem}><Text style={s.hudLabel}>DST</Text><Text style={s.hudValue}>{fmt(distance, 1)} km</Text></View>
+              <View style={s.hudItem}><Text style={s.hudLabel}>FUEL</Text><Text style={s.hudValue}>{fmt(Math.max(0, 100 - fuelUsed), 0)}%</Text></View>
+              <View style={s.hudItem}><Text style={s.hudLabel}>AC</Text><Text style={s.hudValue}>{fmt(integrity, 0)}%</Text></View>
             </View>
             <View style={s.progressBar}>
-              <View style={[s.progressFill, { width: `${flightState.flightProgress * 100}%` }]} />
+              <View style={[s.progressFill, { width: `${flightProgress * 100}%` }]} />
             </View>
           </View>
         )}
@@ -648,6 +625,7 @@ export default function FunMode() {
 
       {/* Bottom panel */}
       {showMissionBrowser ? (
+        /* Mission browser (A16) */
         <ScrollView style={s.panel} contentContainerStyle={s.panelContent}>
           <Text style={s.sectionTitle}>🎯 Select a Mission</Text>
           {(['training', 'commercial', 'military', 'challenge'] as const).map(cat => {
@@ -657,7 +635,7 @@ export default function FunMode() {
               <View key={cat}>
                 <Text style={s.catLabel}>{cat.toUpperCase()}</Text>
                 {missions.map(m => (
-                  <Pressable key={m.id} style={s.missionCard} onPress={() => { ensureAudio(); playClick(); setSelectedMissionId(m.id); setShowMissionBrowser(false); }}>
+                  <Pressable key={m.id} style={s.missionCard} onPress={() => { setSelectedMissionId(m.id); setShowMissionBrowser(false); }}>
                     <Text style={s.missionIcon}>{m.icon}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={s.missionName}>{m.name}</Text>
@@ -676,8 +654,9 @@ export default function FunMode() {
           <View style={{ height: 40 }} />
         </ScrollView>
       ) : (
+        /* Design + Controls panel */
         <ScrollView style={s.panel} contentContainerStyle={s.panelContent}>
-          {/* Mission header */}
+          {/* Mission info header */}
           {selectedMission && (
             <View style={s.missionHeader}>
               <Text style={s.missionHeaderTitle}>{selectedMission.icon} {selectedMission.name}</Text>
@@ -691,59 +670,50 @@ export default function FunMode() {
             </View>
           )}
 
-          {/* Launch + Pause */}
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable onPress={startFlight} style={[s.flyButton, flying && s.flyButtonDisabled, { flex: 1 }]} disabled={flying}>
-              <Text style={s.flyButtonText}>{flying ? '✈️ Flying...' : '🛫 Launch Flight'}</Text>
-            </Pressable>
-            {flying && (
-              <Pressable onPress={togglePause} style={[s.flyButton, { flex: 0, paddingHorizontal: 20, backgroundColor: paused ? '#22C55E' : '#EF4444' }]}>
-                <Text style={s.flyButtonText}>{paused ? '▶ Resume' : '⏸ Pause'}</Text>
-              </Pressable>
-            )}
-          </View>
+          {/* Launch button */}
+          <Pressable
+            onPress={startFlight}
+            style={[s.flyButton, flying && s.flyButtonDisabled]}
+            disabled={flying}
+          >
+            <Text style={s.flyButtonText}>
+              {flying ? '✈️ Flying...' : '🛫 Launch Flight Test'}
+            </Text>
+          </Pressable>
 
-          {/* Joystick controls */}
-          <Panel title="🎮 Flight Controls" subtitle="Throttle, pitch, yaw — these control the actual flight physics.">
+          {/* Joystick controls (A10) */}
+          <Panel title="🎮 Flight Controls" subtitle="Adjust throttle, pitch, and yaw.">
+            {/* Throttle */}
             <View style={s.controlRow}>
               <Text style={s.controlLabel}>Throttle</Text>
               <Pressable onPress={() => adjustThrottle(-0.1)} style={s.ctrlBtn}><Text style={s.ctrlBtnText}>−</Text></Pressable>
-              <View style={s.throttleBar}><View style={[s.throttleFill, { width: `${joystick.throttle * 100}%` }]} /></View>
+              <View style={s.throttleBar}>
+                <View style={[s.throttleFill, { width: `${joystick.throttle * 100}%` }]} />
+              </View>
               <Pressable onPress={() => adjustThrottle(0.1)} style={s.ctrlBtn}><Text style={s.ctrlBtnText}>+</Text></Pressable>
               <Text style={s.controlValue}>{fmt(joystick.throttle * 100, 0)}%</Text>
             </View>
+            {/* Elevator */}
             <View style={s.controlRow}>
               <Text style={s.controlLabel}>Pitch</Text>
               <Pressable onPress={() => adjustElevator(-0.2)} style={s.ctrlBtn}><Text style={s.ctrlBtnText}>↓</Text></Pressable>
-              <View style={s.joystickBar}><View style={[s.joystickIndicator, { left: `${50 + joystick.elevator * 45}%` }]} /></View>
+              <View style={s.joystickBar}>
+                <View style={[s.joystickIndicator, { left: `${50 + joystick.elevator * 45}%` }]} />
+              </View>
               <Pressable onPress={() => adjustElevator(0.2)} style={s.ctrlBtn}><Text style={s.ctrlBtnText}>↑</Text></Pressable>
               <Text style={s.controlValue}>{joystick.elevator > 0 ? '↑' : joystick.elevator < 0 ? '↓' : '—'}</Text>
             </View>
+            {/* Rudder */}
             <View style={s.controlRow}>
               <Text style={s.controlLabel}>Yaw</Text>
               <Pressable onPress={() => adjustRudder(-0.2)} style={s.ctrlBtn}><Text style={s.ctrlBtnText}>←</Text></Pressable>
-              <View style={s.joystickBar}><View style={[s.joystickIndicator, { left: `${50 + joystick.rudder * 45}%` }]} /></View>
+              <View style={s.joystickBar}>
+                <View style={[s.joystickIndicator, { left: `${50 + joystick.rudder * 45}%` }]} />
+              </View>
               <Pressable onPress={() => adjustRudder(0.2)} style={s.ctrlBtn}><Text style={s.ctrlBtnText}>→</Text></Pressable>
               <Text style={s.controlValue}>{joystick.rudder > 0 ? '→' : joystick.rudder < 0 ? '←' : '—'}</Text>
             </View>
           </Panel>
-
-          {/* Engineering events (with reset) */}
-          {flying && (
-            <Panel title="⚡ Engineering Events" subtitle="Trigger or reset events during flight.">
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                <Pressable onPress={triggerEngineFailure} style={[s.eventBtn, engineFailed && s.eventBtnActive]} disabled={engineFailed}>
-                  <Text style={s.eventBtnText}>🔴 Engine Failure</Text>
-                </Pressable>
-                <Pressable onPress={triggerIcing} style={[s.eventBtn]}>
-                  <Text style={s.eventBtnText}>🧊 Ice</Text>
-                </Pressable>
-                <Pressable onPress={resetEvent} style={[s.eventBtn, { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: '#22C55E' }]}>
-                  <Text style={[s.eventBtnText, { color: '#22C55E' }]}>🔄 Reset All</Text>
-                </Pressable>
-              </View>
-            </Panel>
-          )}
 
           <Panel title="Wing" subtitle="The most important part.">
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.horizontalScroll}>
@@ -803,9 +773,11 @@ export default function FunMode() {
             </Text>
           </Panel>
 
+          {/* Back to missions */}
           <Pressable onPress={() => setShowMissionBrowser(true)} style={s.backBtn}>
             <Text style={s.backBtnText}>← Back to Missions</Text>
           </Pressable>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
@@ -814,12 +786,36 @@ export default function FunMode() {
 }
 
 // ---------------------------------------------------------------------------
+// Event effect calculator
+// ---------------------------------------------------------------------------
+
+function getEventEffect(type: string, severity: number) {
+  const s = severity;
+  switch (type) {
+    case 'gust':
+      return { dragMultiplier: 1 + s * 0.1, liftMultiplier: 1 - s * 0.05, thrustMultiplier: 1, integrityDamage: s * 0.3 };
+    case 'crosswind':
+      return { dragMultiplier: 1 + s * 0.15, liftMultiplier: 1, thrustMultiplier: 1, integrityDamage: s * 0.2 };
+    case 'icing':
+      return { dragMultiplier: 1 + s * 0.2, liftMultiplier: 1 - s * 0.1, thrustMultiplier: 1 - s * 0.03, integrityDamage: s * 0.5 };
+    case 'wind_shear':
+      return { dragMultiplier: 1 + s * 0.25, liftMultiplier: 1 - s * 0.15, thrustMultiplier: 1, integrityDamage: s * 0.4 };
+    case 'thunderstorm':
+      return { dragMultiplier: 1 + s * 0.3, liftMultiplier: 1 - s * 0.1, thrustMultiplier: 1 - s * 0.05, integrityDamage: s * 0.8 };
+    default:
+      return { dragMultiplier: 1, liftMultiplier: 1, thrustMultiplier: 1, integrityDamage: 0 };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function OptionCardH({ option, active, onPress }: { option: OptionCard; active: boolean; onPress: () => void }) {
+function OptionCardH({ option, active, onPress }: {
+  option: OptionCard; active: boolean; onPress: () => void;
+}) {
   return (
-    <Pressable onPress={() => { playClick(); onPress(); }} style={[s.optionCard, active && s.optionCardActive]}>
+    <Pressable onPress={onPress} style={[s.optionCard, active && s.optionCardActive]}>
       <Text style={s.optionIcon}>{option.icon}</Text>
       <Text style={[s.optionLabel, active && s.optionLabelActive]}>{option.label}</Text>
       {active ? <Text style={s.optionTip}>{option.tip}</Text> : null}
@@ -845,7 +841,7 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   viewport: { height: '38%', backgroundColor: '#6CB4EE', borderBottomWidth: 2, borderBottomColor: colors.borderStrong, position: 'relative' },
   canvas: { flex: 1 },
-  topControls: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', gap: 4 },
+  cameraToggle: { position: 'absolute', top: 8, right: 8, flexDirection: 'row', gap: 4 },
   camBtn: { backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   camBtnActive: { backgroundColor: 'rgba(255,176,32,0.7)' },
   camBtnText: { color: '#CCC', fontSize: 12, fontWeight: '600' },
@@ -890,6 +886,7 @@ const s = StyleSheet.create({
   tipText: { color: colors.textSubtle, fontSize: fontSize.sm, lineHeight: 20 },
   backBtn: { padding: spacing.sm, alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radius.md },
   backBtnText: { color: colors.accent, fontSize: fontSize.sm },
+  // Joystick controls
   controlRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
   controlLabel: { color: colors.textSubtle, fontSize: fontSize.sm, width: 50 },
   controlValue: { color: colors.primary, fontSize: fontSize.sm, fontWeight: fontWeight.bold, width: 40, textAlign: 'right' },
@@ -899,10 +896,12 @@ const s = StyleSheet.create({
   throttleFill: { height: '100%', backgroundColor: '#22C55E', borderRadius: 4 },
   joystickBar: { flex: 1, height: 8, backgroundColor: colors.backgroundAlt, borderRadius: 4, position: 'relative' },
   joystickIndicator: { position: 'absolute', top: -2, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.primary },
+  // Mission events
   eventBanner: { position: 'absolute', top: 50, left: 8, right: 8, zIndex: 20, backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: radius.sm, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderLeftWidth: 4 },
   eventIcon: { fontSize: 24 },
   eventText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   eventSeverity: { color: colors.textFaint, fontSize: fontSize.xs },
+  // Mission result overlay
   resultOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 30, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
   resultCard: { backgroundColor: colors.background, borderRadius: radius.xl, padding: spacing.xl, width: '85%', alignItems: 'center', gap: 8 },
   resultGrade: { fontSize: 64, fontWeight: fontWeight.bold, color: colors.primary },
@@ -911,7 +910,4 @@ const s = StyleSheet.create({
   resultObj: { fontSize: fontSize.sm, lineHeight: 22 },
   resultCloseBtn: { marginTop: spacing.md, backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.md, paddingHorizontal: spacing.xl },
   resultCloseBtnText: { color: '#000', fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  eventBtn: { flex: 1, padding: 10, borderRadius: radius.md, backgroundColor: colors.backgroundAlt, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  eventBtnActive: { borderColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)' },
-  eventBtnText: { color: colors.textSubtle, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
 });
