@@ -15,8 +15,10 @@ import {
   analyzeFlight,
   bladeElementPropeller,
   dragPolar,
+  dragDeltaFromTransition,
   dynamicPressure,
   inducedDragFactor,
+  laminarTurbulentTransition,
   machNumber,
   nacaGeometry,
   pitchingMomentCoeff,
@@ -570,5 +572,98 @@ describe('Blade Element Theory', () => {
     expect(result.thrustN).toBeGreaterThan(0);
     expect(result.advanceRatio).toBe(0);
     expect(result.efficiency).toBe(0); // no useful work at V=0
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Model 16 & 17 — Laminar–Turbulent Transition
+// ---------------------------------------------------------------------------
+
+describe('laminar-turbulent transition', () => {
+  const V = 50;        // m/s
+  const c = 1.5;       // m (chord)
+  const rho = 1.225;   // kg/m³ (sea level)
+  const mu = 1.789e-5; // Pa·s (sea level dynamic viscosity)
+
+  it('transition location is within chord bounds', () => {
+    const r = laminarTurbulentTransition(V, c, rho, mu);
+    expect(r.x_tr).toBeGreaterThan(0);
+    expect(r.x_tr_ratio).toBeGreaterThan(0);
+    expect(r.x_tr_ratio).toBeLessThanOrEqual(1);
+  });
+
+  it('Reynolds number matches formula Re = ρVL/μ', () => {
+    const r = laminarTurbulentTransition(V, c, rho, mu);
+    const expected_Re = (rho * V * c) / mu;
+    expect(r.Re_L).toBeCloseTo(expected_Re, 6);
+  });
+
+  it('fully laminar regime when Re_L < Re_crit', () => {
+    // Very low speed → Re_L < 5e5
+    const r = laminarTurbulentTransition(1, 0.1, rho, mu);
+    expect(r.regime).toBe('fully laminar');
+    expect(r.x_tr_ratio).toBe(1);
+  });
+
+  it('laminar friction is less than turbulent friction', () => {
+    const r = laminarTurbulentTransition(V, c, rho, mu);
+    expect(r.Cf_lam).toBeLessThan(r.Cf_turb);
+  });
+
+  it('average Cf is between laminar and turbulent values', () => {
+    const r = laminarTurbulentTransition(V, c, rho, mu);
+    expect(r.Cf_avg).toBeGreaterThanOrEqual(r.Cf_lam);
+    expect(r.Cf_avg).toBeLessThanOrEqual(r.Cf_turb);
+  });
+
+  it('Blasius laminar Cf ≈ 1.328/√Re for low Re', () => {
+    // At low Re (fully laminar plate), Cf_lam should match Blasius
+    const r = laminarTurbulentTransition(2, 0.5, rho, mu);
+    const expected = 1.328 / Math.sqrt(r.Re_L);
+    expect(r.Cf_lam).toBeCloseTo(expected, 6);
+  });
+
+  it('higher velocity pushes transition forward', () => {
+    const r1 = laminarTurbulentTransition(20, c, rho, mu);
+    const r2 = laminarTurbulentTransition(80, c, rho, mu);
+    expect(r2.x_tr).toBeLessThan(r1.x_tr);
+  });
+
+  it('rejects invalid inputs', () => {
+    expect(() => laminarTurbulentTransition(0, c, rho, mu)).toThrow();
+    expect(() => laminarTurbulentTransition(V, 0, rho, mu)).toThrow();
+    expect(() => laminarTurbulentTransition(V, c, 0, mu)).toThrow();
+    expect(() => laminarTurbulentTransition(V, c, rho, 0)).toThrow();
+  });
+
+  it('custom Re_crit changes transition location', () => {
+    const r1 = laminarTurbulentTransition(V, c, rho, mu, 1e5);
+    const r2 = laminarTurbulentTransition(V, c, rho, mu, 1e6);
+    expect(r1.x_tr).toBeLessThan(r2.x_tr);
+  });
+});
+
+describe('dragDeltaFromTransition', () => {
+  const V = 50;
+  const c = 1.5;
+  const rho = 1.225;
+  const mu = 1.789e-5;
+
+  it('drag reduction is positive (laminar run saves drag)', () => {
+    const r = dragDeltaFromTransition(V, c, rho, mu);
+    expect(r.dragReduction).toBeGreaterThan(0);
+  });
+
+  it('short chord has minimal drag reduction (mostly turbulent)', () => {
+    // Very short chord → mostly turbulent → small drag reduction
+    const r = dragDeltaFromTransition(V, 0.01, rho, mu);
+    expect(r.dragReduction).toBeGreaterThanOrEqual(0);
+    expect(r.dragReduction).toBeLessThan(0.005);
+  });
+
+  it('transition fraction matches laminar-turbulent model', () => {
+    const tr = laminarTurbulentTransition(V, c, rho, mu);
+    const dd = dragDeltaFromTransition(V, c, rho, mu);
+    expect(dd.transitionFraction).toBeCloseTo(tr.x_tr_ratio, 6);
   });
 });
