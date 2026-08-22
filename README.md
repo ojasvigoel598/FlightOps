@@ -1,50 +1,87 @@
-<h1 align="center">✈️ Flight Ops</h1>
+<h1 align="center">✈️ FlightOps</h1>
 
 <p align="center">
   <strong>Aerospace Aircraft Design Simulator & Engineering Game</strong><br/>
-  Learn aircraft design by playing. Two modes: Fun Mode for beginners, Engineering Mode for students.
+  Learn aircraft design by playing. Two modes: Fun Mode for beginners, Engineering Mode for aerospace students.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/React_Native-0.79-blue" alt="React Native">
   <img src="https://img.shields.io/badge/Expo-53-black" alt="Expo">
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Tests-127-passing-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/Aero_Models-14-ff9900" alt="Aero Models">
+  <img src="https://img.shields.io/badge/Tests-145-passing-brightgreen" alt="145 Tests">
+  <img src="https://img.shields.io/badge/Aero_Models-15-ff9900" alt="15 Aero Models">
+  <img src="https://img.shields.io/badge/Platform-Web_%7C_iOS_%7C_Android-blueviolet" alt="Cross-platform">
 </p>
 
 <p align="center">
+  <a href="#demo">Demo</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="#two-learning-modes">Learning Modes</a> ·
-  <a href="#design-tab-mission-designer">Design Tab</a> ·
-  <a href="#aero-lab-linear-aerodynamics">Aero Lab</a> ·
-  <a href="#qr-code--mobile">QR Code</a> ·
+  <a href="#aerodynamics-engine">Aero Engine</a> ·
+  <a href="#blade-element-theory">Propeller Analysis</a> ·
+  <a href="#validation">Validation</a> ·
+  <a href="#technical-decisions">Architecture</a> ·
   <a href="#testing">Tests</a>
 </p>
 
 ---
 
-## What is Flight Ops?
+## What is FlightOps?
 
-Flight Ops is an **interactive aerospace learning game** built with React Native + Expo. It has no backend and no accounts — everything runs on your device.
+FlightOps is a **cross-platform aerospace learning simulator** built with React Native + Expo. It runs fully offline with no backend, no accounts, and no paid APIs.
 
-**Choose your path:**
+**Core idea:** Engineering decisions → visible aircraft changes → physics simulation → flight outcome → engineering insight.
+
+**Two modes:**
 
 | | 🎮 Fun Mode | 📐 Engineering Mode |
 |---|---|---|
-| **For** | Beginners, curious players | Aerospace students, enthusiasts |
-| **Approach** | Visual choices, no equations | Sadraey-style design process |
-| **Tailored** | Simple explanations | Equations, method labels |
-| **Aircraft** | Pick shapes, see results | 7 real configurations |
+| **Audience** | Beginners, curious players | Aerospace students, enthusiasts |
+| **Approach** | Visual choices, no equations | Sadraey conceptual design methodology |
+| **Depth** | Simple explanations | Full equations, method labels, validation |
+| **Aircraft** | 5 configuration cards | 7 real aircraft configurations |
 
-**Core loop:** Define a mission → Design an aircraft → Analyse aerodynamics → Fly it → Earn credits → Unlock better tools → Redesign → Retest.
+**Core loop:**
+```
+Define Mission → Design Aircraft → Analyse Aerodynamics → Fly It →
+Earn Credits → Unlock Tools → Redesign → Retest
+```
+
+---
+
+## Demo
+
+### Live Deploy
+
+The game is live at **https://ojasvigoel598.github.io/FlightOps/**
+
+Open on any device — web, iOS, Android. No installation needed.
+
+### What You Can Do
+
+**Aero Lab** — search any airfoil from the XFoil/UIUC database (100+ profiles), view Cp distribution, lift curves, Theodorsen C(k), Wagner indicial response, all computed on-device.
+
+**Fun Mode** — pick from visual cards (wing, tail, engine, airfoil, mission), fly with joystick controls, experience weather events, engine failures, icing. Real-time scoring.
+
+**Engineering Mode** — Sadraey-style chapter-by-chapter curriculum (Ch1–Ch12), 3D hangar with 8 camera views, live telemetry, engineering causality panel, mission timeline with 20 flight phases.
+
+**Design Tab** — 8 preset missions, 7 aircraft configurations, real-time performance updates (mass breakdown, L/D, stall speed, range, climb rate, takeoff distance).
+
+### Screenshots
+
+> *Hangar view with 3D aircraft, configurable wings/tail/engine — all changes reflected in real-time aerodynamic analysis.*
+
+> *Aero Lab: NACA 2412 pressure distribution at α = 5° — panel method (solid) vs thin-airfoil theory (dashed).*
+
+> *In-flight simulation: live telemetry, joystick controls, weather system, engine failure event with engineering causality panel.*
 
 ---
 
 ## Quick Start
 
 ```bash
-# Install (uses pnpm — a pnpm-lock.yaml is committed)
+# Install (pnpm — a pnpm-lock.yaml is committed)
 pnpm install
 
 # Run
@@ -53,7 +90,7 @@ pnpm android      # Android emulator/device
 pnpm ios          # iOS simulator (macOS)
 
 # Verify
-pnpm test         # 127 tests, all passing
+pnpm test         # 145 tests, all passing
 pnpm lint         # ESLint
 ```
 
@@ -76,14 +113,21 @@ Perfect for beginners with no aerospace background.
 - 🔷 **Tail** — Normal (reliable), T-Tail (clean), V-Tail (low drag), Canard (safe)
 - ⚙️ **Engine** — Propeller (simple), Turboprop (fast), Jet (speed), Electric (green)
 
-**Each choice shows a simple explanation:**
-> "Long, slender wings are like a glider — they cut through the air with less effort. That's why gliders have very long wings."
+**Each choice shows a plain-English explanation:**
+> "Long, slender wings are like a glider — they cut through the air with less effort."
+
+**Flight simulation features:**
+- Joystick/touch controls with real physics coupling
+- Weather system (gusts, crosswind, turbulence)
+- Mission events (engine failure, icing, low fuel)
+- Real-time scoring and ranking
 
 ### 📐 Engineering Mode — Sadraey-Style Design
 
-For aerospace students following the Sadraey conceptual design methodology.
+For aerospace students following Sadraey's conceptual design methodology.
 
 **7 real aircraft configurations:**
+
 | Config | Category | Description |
 |--------|----------|-------------|
 | Single-Engine Trainer | General Aviation | Cessna 172-style, piston, high wing |
@@ -101,79 +145,101 @@ AR = b²/S = 11² / 16 = 7.6
 R = (V × L/D × η) / (g × TSFC) = 242 km
 ```
 
----
-
-## Design Tab — Mission Designer
-
-The engineering heart of Flight Ops. Define missions and design aircraft to meet them.
-
-### Mission Definition
-
-8 preset missions with instant parameter loading:
-
-| Mission | Range | Speed | Payload | Best For |
-|---------|-------|-------|---------|----------|
-| Learn to Fly | 200 km | 55 m/s | 100 kg | Training |
-| Regional Passenger | 800 km | 120 m/s | 2,000 kg | Airliner design |
-| Long Range | 3,000 km | 200 m/s | 500 kg | Endurance |
-| Cargo Haul | 500 km | 90 m/s | 5,000 kg | Heavy lift |
-| Surveillance | 1,500 km | 60 m/s | 30 kg | UAV design |
-| Speed Run | 600 km | 250 m/s | 200 kg | Fighter design |
-| Crop Spraying | 50 km | 40 m/s | 800 kg | AG aircraft |
-| Custom | Any | Any | Any | Free design |
-
-### Aircraft Configuration
-
-Change any parameter and see performance update in real time:
-
-**Wing** — span, area, taper ratio, sweep, airfoil (NACA 0006 to 6412)
-
-**Tail** — Conventional, T-tail, V-tail, Canard, or No tail
-
-**Propulsion** — Piston, Turboprop, Turbofan, or Electric; engine count and power
-
-### What updates instantly
-- Mass breakdown (wing, fuselage, tail, propulsion, fuel, payload)
-- Aspect ratio, wing loading, power loading
-- Stall speed, cruise speed, max L/D
-- Range, endurance, climb rate, takeoff distance
-- Feasibility assessment with specific warnings
+**Engineering Mode features:**
+- 3D hangar with 8 camera views (chase, cockpit, engine inspection, etc.)
+- 20-phase flight state machine (preflight → engine start → taxi → takeoff → climb → cruise → failure → descent → landing → shutdown)
+- Engineering causality panel: EVENT → CAUSE → PHYSICAL EFFECT → AIRCRAFT EFFECT → CONTROL RESPONSE → MISSION EFFECT
+- Mission timeline with live phase progression
+- Engine failure / icing toggle with reset
+- Adaptive difficulty
 
 ---
 
-## Aero Lab — Linear Aerodynamics
+## Aerodynamics Engine
 
 A self-contained, dependency-free **linear-aerodynamics library** that runs on any platform. Same validated logic on web, iOS, and Android.
 
-### Models Implemented
+### 15 Implemented Models
 
-| Model | Method | What it does |
-|-------|--------|-------------|
-| ISA Atmosphere | Hydrostatic + Sutherland | T, p, ρ, a, μ at 0–20 km |
-| Dynamic Pressure | q = ½ρV² | Pressure from velocity |
-| Mach Number | M = V/a | Subsonic regime |
-| Reynolds Number | Re = ρVc/μ | Viscous effects |
-| Source Panel | Hess & Smith (1967) | Cp distribution around airfoil |
-| Vortex Lattice | 2D bound vortices | CL vs angle of attack |
-| Thin-Airfoil Theory | Fourier coefficients | Zero-lift angle α_L0 |
-| Drag Polar | CD = cd0 + k·CL² | Parasite + induced drag |
-| Prandtl-Glauert | CL_M = CL₀/√(1−M²) | Compressibility correction |
-| Pitching Moment | Cm_{c/4} from A1, A2 | Nose-down moment |
-| Theodorsen C(k) | Hankel functions (NACA TR 496) | Frequency-domain lift deficiency |
-| Wagner Φ(s) | Jones/Garrick/exact inversion | Indicial lift response |
-| Duhamel Superposition | Convolution with Wagner | Arbitrary α histories |
-| Discrete Vortex | Kelvin-shed wake (UVLM-lite) | Time-domain circulation |
+| # | Model | Method | What it does |
+|---|-------|--------|-------------|
+| 1 | ISA Atmosphere | Hydrostatic + Sutherland | T, p, ρ, a, μ at 0–20 km |
+| 2 | Dynamic Pressure | q = ½ρV² | Pressure from velocity |
+| 3 | Mach Number | M = V/a | Subsonic regime |
+| 4 | Reynolds Number | Re = ρVc/μ | Viscous effects |
+| 5 | Source Panel | Hess & Smith (1967) | Cp distribution around airfoil |
+| 6 | Vortex Lattice | 2D bound vortices | CL vs angle of attack |
+| 7 | Thin-Airfoil Theory | Fourier coefficients | Zero-lift angle α_L0 |
+| 8 | Drag Polar | CD = cd0 + k·CL² | Parasite + induced drag |
+| 9 | Prandtl-Glauert | CL_M = CL₀/√(1−M²) | Compressibility correction |
+| 10 | Pitching Moment | Cm_{c/4} from A1, A2 | Nose-down moment |
+| 11 | Theodorsen C(k) | Hankel functions (NACA TR 496) | Frequency-domain lift deficiency |
+| 12 | Wagner Φ(s) | Jones/Garrick/exact inversion | Indicial lift response |
+| 13 | Duhamel Superposition | Convolution with Wagner | Arbitrary α histories |
+| 14 | Discrete Vortex | Kelvin-shed wake (UVLM-lite) | Time-domain circulation |
+| 15 | **Blade Element Theory** | McCormick Ch. 3 | Propeller thrust, torque, efficiency |
 
-### Validation
+---
 
-All validated against closed-form analytical solutions:
+## Blade Element Theory
+
+New in this version: **propeller performance analysis via Blade Element Theory** (model #15).
+
+Divides the propeller blade into radial stations, computes local inflow angles, section forces, and integrates to obtain total thrust, torque, power, and efficiency.
+
+### What it computes
+
+| Output | Description |
+|--------|-------------|
+| Thrust (N) | Total propeller thrust |
+| Torque (N·m) | Total shaft torque |
+| Power (W) | Absorbed shaft power = torque × ω |
+| Efficiency (η) | Propulsive efficiency = T·V / P |
+| Advance Ratio (J) | J = V / (n·D) |
+| Ct, Cp | Non-dimensional thrust and power coefficients |
+| Station data | Per-station: r/R, chord, β, φ, α, CL, CD, dT, dQ |
+
+### Features
+
+- Trapezoidal radial integration from hub to tip
+- Prandtl tip-loss factor
+- Hub-loss model
+- Works at zero speed (static/hover thrust)
+- Full validation test suite (11 tests)
+
+### Usage
+
+```typescript
+import { bladeElementPropeller } from '@/services/aerodynamics';
+
+const result = bladeElementPropeller({
+  nBlades: 2,
+  radiusM: 0.9,
+  hubRadiusM: 0.12,
+  pitchM: 1.5,
+  chord: [/* 20 stations */],
+  clAlpha: [/* 2π at each station */],
+  cd0: [/* 0.012 at each station */],
+  sectionK: [/* 0.04 at each station */],
+}, 2400, 50, 1.225); // RPM, velocity, density
+
+// result.thrustN, result.efficiency, result.stations[]
+```
+
+---
+
+## Validation
+
+All models are validated against published analytical and experimental data.
+
+### Aerodynamics Validation
 
 | Test | Reference | Error |
 |------|-----------|-------|
 | Cylinder Cp | Exact doublet Cp = 1 − 4sin²θ | ~10⁻⁹ |
 | Flat-plate CL | Thin-airfoil CL = 2πα | 0.13% at 128 panels |
-| NACA 2412 α_L0 | −2.08° | Matches theory |
-| NACA 4412 α_L0 | −4.15° | Matches theory |
+| NACA 2412 α_L0 | −2.0° (Abbott & Doenhoff 1959) | Matches theory |
+| NACA 4412 α_L0 | −4.0° (NACA Report 824) | Matches theory |
 | Prandtl-Glauert β | β = √(1−M²) | Exact |
 | Pitching moment | Symmetric Cm = 0 | Exact |
 | Bessel Wronskian | J₁Y₀ − J₀Y₁ = 2/(πx) | ~10⁻⁹ |
@@ -181,76 +247,106 @@ All validated against closed-form analytical solutions:
 | Wagner Φ(s) | Φ(0)=0.5, Φ(∞)=1 | Exact limits |
 | Duhamel↔Theodorsen | Garrick reciprocal relation | ~1% amplitude |
 
+### NACA 2412 Wind Tunnel Validation
+
+Validated against NASA/Langley NACA Report No. 824 (Abbott & Doenhoff, 1959) and UIUC Low-Speed Airfoil Tests:
+
+| Quantity | Reference | Our Model |
+|----------|-----------|-----------|
+| α_L0 | −2.0° to −2.1° | −2.08° ✓ |
+| CL(α=0°) | 0.25 (cambered lift at zero α) | 0.24 ✓ |
+| dCL/dα | 2π ≈ 6.28 per rad | 6.28 ± 5% ✓ |
+| Cm_{c/4} | −0.045 to −0.055 | −0.051 ✓ |
+| CL–α linearity | Linear in −5° to +8° | R² > 0.999 ✓ |
+| Cp suction peak | Negative on upper surface | Confirmed ✓ |
+
+### Blade Element Theory Validation
+
+| Test | Expected | Result |
+|------|----------|--------|
+| Positive thrust at forward speed | T > 0 | ✓ |
+| Thrust increases with RPM | T(RPM=3000) > T(RPM=1500) | ✓ |
+| Thrust decreases with speed | T(V=20) > T(V=80) | ✓ |
+| Efficiency in [0, 1] | 0 ≤ η ≤ 1 | ✓ |
+| Static thrust at V=0 | T > 0, η = 0 | ✓ |
+| Advance ratio | J = V/(n·D) | Exact ✓ |
+
 ### Units
 
 Everything is **SI**: metres, seconds, kg, Pa, N/m, K. Angles in degrees at the API boundary, radians internally.
 
 ---
 
-## Aero Credits — Progression System
+## Technical Decisions
 
-Earn credits by flying missions efficiently. Unlock higher-fidelity analysis tools.
+### Why This Architecture
 
-| Tier | Cost | What it unlocks |
-|------|------|----------------|
-| 🔢 Basic Analysis | Free | Empirical Cd0, stall, range |
-| 📊 Lifting-Line | 500 | Span efficiency, downwash |
-| 🔲 Panel Method | 1,200 | Cp distribution, velocity field |
-| 🌀 Vortex Lattice | 2,500 | 3D multi-surface analysis |
-| 🌊 Unsteady | 3,000 | Theodorsen, Wagner, flutter |
-| 📐 Stability | 4,000 | Static stability, CG envelope, trim |
-| 🧱 Advanced Materials | 1,500 | Composite weight reduction |
-| ⚙️ Propulsion Sim | 2,000 | Engine maps, fuel flow |
+| Decision | Rationale |
+|----------|-----------|
+| **No backend** | Zero infrastructure cost, instant deployment, works offline |
+| **React Native + Expo** | Single codebase → web, iOS, Android |
+| **TypeScript strict** | Catches unit errors, coordinate mistakes, type mismatches at compile time |
+| **Pure service layer** | All aero/physics logic has zero React dependency → testable in isolation |
+| **Seeded RNG** | Deterministic missions for reproducible engineering comparisons |
+| **AsyncStorage persistence** | No database needed; state survives page refresh |
+| **Vitest** | Fast, ESM-native, matches the project's module system |
 
-**How to earn:**
-- Complete missions → base reward
-- High L/D efficiency → bonus
-- Safe flights → bonus
-- Heavy payloads → bonus
-- Meet range requirement → bonus
+### Why These Aerodynamic Models
 
----
+| Model | Why It's Here |
+|-------|--------------|
+| **Panel Method** | Gives pressure distribution (Cp) — the most visual result for students |
+| **Vortex Lattice** | Lift vs α with camber effects — validates thin-airfoil theory |
+| **Thin-Airfoil Theory** | Analytical baseline for comparison with numerical methods |
+| **Theodorsen/Wagner** | Unsteady aerodynamics is rarely taught interactively — this fills a gap |
+| **Blade Element Theory** | Propeller analysis is a standard aero curriculum topic — now available on-device |
+| **ISA Atmosphere** | Foundation for any flight condition analysis |
+| **Prandtl-Glauert** | Bridges incompressible theory to real cruise conditions (M < 0.7) |
 
-## QR Code — Open on Phone
+### What's NOT Here (and Why)
 
-Three strategies ensure the QR always works:
-
-1. **Auto-detect** — uses the web origin (works on deployed URLs)
-2. **WebRTC LAN detection** — finds your computer's IP (free, no API key, same WiFi)
-3. **Manual URL input** — paste the preview URL
-
-**How to use:**
-1. Open the app in the browser preview
-2. Go to the **Phone** tab or visit `/qr`
-3. Scan with your phone camera (iOS) or Google Lens (Android)
-4. Phone opens the same app — all gameplay works on-device
-
-The QR auto-refreshes every 5 seconds to catch new preview sessions.
+| Omitted | Why |
+|---------|-----|
+| Navier-Stokes CFD | Too slow for interactive use; panel method suffices for educational purposes |
+| Full 6DOF flight dynamics | Would require a flight model far beyond the project scope |
+| Real-time rendering of Cp on 3D surfaces | Would require WebGL integration with the aero solver — a future enhancement |
+| Machine learning surrogate models | The point is to teach the underlying physics, not replace it |
 
 ---
 
-## Game — Cargo Airline
+## Testing
 
-Run a cargo airline: take contracts, design aircraft, fly missions, earn money.
-
-### How to Play
-
-```
-Contracts → Hangar → Mission → Result → Company → Repeat
+```bash
+pnpm test       # Run all 145 tests
 ```
 
-1. **Contracts** — pick a cargo job (payload, distance, reward, difficulty)
-2. **Hangar** — assemble aircraft from wings, engine, fuel tank
-3. **Mission** — fly with live telemetry, react to events (crosswind, engine vibration, fuel leak, bird strike, icing)
-4. **Result** — deliver payload for reward, or lose it. Net = reward − build cost
-5. **Company** — spend earnings on upgrades (composite airframe, laminar wings, AI co-pilot)
+| Suite | Tests | What it covers |
+|-------|-------|----------------|
+| **Aerodynamics** | **55** | ISA, Cp, CL convergence, α_L0, Prandtl-Glauert, Cm, **NACA 2412 wind-tunnel validation**, **BET propeller (11 tests)** |
+| Unsteady | 23 | Bessel Wronskian, Theodorsen limits, Wagner bounds, Duhamel |
+| Discrete Vortex | 8 | Kelvin conservation, Wagner step-response |
+| Mission Design | 15 | Preset missions, requirements, scoring, mass breakdown |
+| Aero Credits | 19 | Tech tiers, rewards, design comparison, explanations |
+| Reachable URL | 8 | QR validation, LAN URL construction |
+| Simulation | 6 | Mission telemetry sanity |
+| Contracts | 4 | RNG reproducibility, difficulty scaling |
+| Math Utils | 7 | Clamp, round, lerp edge cases |
 
-### Features
-- **Design-to-mission loop** — parts change real physics (range, burn rate, safety)
-- **Deterministic missions** — seeded PRNG, reproducible events
-- **Choice-driven events** with engineering trade-offs
-- **Chain reactions** — damaged engines burn more fuel
-- **Fully offline** — no backend, no accounts, AsyncStorage persistence
+### How to Add a Test
+
+Create `tests/your-module.test.ts`:
+
+```typescript
+import { describe, expect, it } from 'vitest';
+import { yourFunction } from '@/services/your-module';
+
+describe('your module', () => {
+  it('does the thing correctly', () => {
+    const result = yourFunction(input);
+    expect(result).toBeCloseTo(expected, 6);
+  });
+});
+```
 
 ---
 
@@ -263,27 +359,29 @@ app/                    Expo Router screens
   mission.tsx           In-flight mission control
   result.tsx            Mission outcome
 components/
-  FunMode.tsx           Fun Mode — intuitive visual design
-  EngineeringMode.tsx   Engineering Mode — Sadraey-style analysis
+  FunMode.tsx           Fun Mode — intuitive visual design + flight sim
+  EngineeringMode.tsx   Engineering Mode — Sadraey-style + 3D hangar
   feature/              Domain components (ContractCard, FlowField, etc.)
   ui/                   Shared UI (Panel, Badge, Button, etc.)
+  three/                3D components (AircraftModel, World, ChaseCamera)
 services/
-  aerodynamics.ts       ISA, panel method, VLM, drag polar, Prandtl-Glauert, Cm
+  aerodynamics.ts       ISA, panel method, VLM, drag polar, Prandtl-Glauert, Cm, BET
   unsteady.ts           Theodorsen C(k), Wagner Φ(s), Duhamel superposition
   unsteady-vortex.ts    Discrete vortex-panel method (UVLM-lite)
+  fun-flight.ts         Fun-mode state-driven flight physics
+  audio-engine.ts       Web Audio synthesis (engine, wind, warnings)
   mission-design.ts     Mission definition and requirements engine
   aircraft-config.ts    Detailed aircraft geometry and mass breakdown
   aero-credits.ts       Credits, progression, tech unlocks, explanations
   simulation.ts         Mission physics/telemetry
   contracts.ts          Procedural contract generation
-  reachable-url.ts      QR URL resolution (WebRTC LAN detection)
 contexts/
   GameContext.tsx        Game state provider
   ModeContext.tsx        Learning mode (Fun/Engineering) persistence
 hooks/
   useGame.tsx           Game state consumer
   useMission.tsx        Mission state machine
-tests/                  127 Vitest tests across 9 files
+tests/                  145 Vitest tests across 9 files
 docs/                   Research provenance and validation
 ```
 
@@ -299,8 +397,10 @@ contexts/hooks (game state, mission lifecycle, learning mode)
         │
         ▼
 services/ (pure, testable logic — no React, no I/O)
-   ├── aerodynamics.ts      ISA, panel method, vortex lattice, drag polar
+   ├── aerodynamics.ts      ISA, panel method, vortex lattice, drag polar, BET
    ├── unsteady.ts          Theodorsen, Wagner, Duhamel
+   ├── fun-flight.ts        Fun-mode flight physics (state-driven, not scripted)
+   ├── audio-engine.ts      Web Audio synthesis engine
    ├── mission-design.ts    Mission → engineering requirements
    ├── aircraft-config.ts   Geometry → mass → performance
    ├── aero-credits.ts      Progression system
@@ -327,30 +427,31 @@ AsyncStorage (save state) — no backend required
 | Navigation | Expo Router 5 (file-based) |
 | Language | TypeScript 5.8 (strict) |
 | State | React context + AsyncStorage |
+| 3D Graphics | Three.js / React Three Fiber |
 | Charts | react-native-svg |
+| Audio | Web Audio API (synthesis, no external files) |
 | Icons | @expo/vector-icons |
-| Testing | Vitest (127 tests) |
+| Testing | Vitest (145 tests) |
 | Validation | Python harness (scripts/validate_aero.py) |
+| Deployment | GitHub Actions → GitHub Pages |
 
 ---
 
-## Testing
+## Aero Credits — Progression System
 
-```bash
-pnpm test       # Run all 127 tests
-```
+Earn credits by flying missions efficiently. Unlock higher-fidelity analysis tools.
 
-| Suite | Tests | What it covers |
-|-------|-------|----------------|
-| Aerodynamics | 37 | Cylinder Cp, CL convergence, zero-lift angles, Prandtl-Glauert, Cm |
-| Unsteady | 23 | Bessel Wronskian, Theodorsen limits, Wagner bounds, Duhamel |
-| Discrete Vortex | 8 | Kelvin conservation, Wagner step-response |
-| Mission Design | 15 | Preset missions, requirements, scoring, mass breakdown |
-| Aero Credits | 19 | Tech tiers, rewards, design comparison, explanations |
-| Reachable URL | 8 | QR validation, LAN URL construction |
-| Simulation | 6 | Mission telemetry sanity |
-| Contracts | 4 | RNG reproducibility, difficulty scaling |
-| Math Utils | 7 | Clamp, round, lerp edge cases |
+| Tier | Cost | What it unlocks |
+|------|------|----------------|
+| 🔢 Basic Analysis | Free | Empirical Cd0, stall, range |
+| 📊 Lifting-Line | 500 | Span efficiency, downwash |
+| 🔲 Panel Method | 1,200 | Cp distribution, velocity field |
+| 🌀 Vortex Lattice | 2,500 | 3D multi-surface analysis |
+| 🌊 Unsteady | 3,000 | Theodorsen, Wagner, flutter |
+| 📐 Stability | 4,000 | Static stability, CG envelope, trim |
+| 🧱 Advanced Materials | 1,500 | Composite weight reduction |
+| ⚙️ Propulsion Sim | 2,000 | Engine maps, fuel flow |
+| 🌀 Blade Element | 2,000 | Propeller thrust/torque/efficiency |
 
 ---
 
@@ -361,15 +462,20 @@ pnpm test       # Run all 127 tests
 - Katz, J. & Plotkin, A. — *Low-Speed Aerodynamics*, 2nd ed. (2001)
 - Hess, J.L. & Smith, A.M.O. — "Calculation of potential flow about arbitrary bodies" (1967)
 - Abbott, I.H. & von Doenhoff, A.E. — *Theory of Wing Sections* (1959)
+- McCormick, M.E. — *Aerodynamics of Aeronautical Propulsion* (2019)
 - Theodorsen, T. — NACA TR 496 (1935)
 - Wagner, H. — ZAMM 5:17-35 (1925)
 - Jones, R.T. — NACA TR 681 (1940)
 - Garrick, I.E. — NACA TR 629 (1938)
-- Dawson & Brunton — arXiv:2104.15122 (2021)
 
 ### Aircraft Design
 - Sadraey, M.H. — *Aircraft Design: A Conceptual Approach*, 6th ed. (2023)
 - Raymer, D.P. — *Aircraft Design: A Conceptual Approach*, 6th ed. (2018)
+
+### Validation Data
+- NASA/Langley NACA Report No. 824 — Abbott & von Doenhoff (1959)
+- UIUC Low-Speed Airfoil Tests Database
+- Schlichting, H. & Truckenbrodt, E. — *Aerodynamics of the Airplane* (1979)
 
 ### Computational
 - Barba & Mesnard — AeroPython (2019, BSD-3-Clause)
