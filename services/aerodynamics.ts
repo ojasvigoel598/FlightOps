@@ -1076,3 +1076,141 @@ export function bladeElementPropeller(
     stations,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Model 16 — Laminar–Turbulent Transition on a Flat Plate
+// ---------------------------------------------------------------------------
+//
+// Estimates the transition Reynolds number Re_x_tr using the Thwaites
+// laminar boundary-layer solution combined with the von Kármán
+// Schlichting skin-friction formula for the turbulent side.
+//
+// For engineering purposes we use the empirical correlation:
+//   Re_x_tr ≈ Re_crit, where Re_crit ≈ 5×10⁵ for smooth flat plate
+//   (Schlichting & Gersten, Boundary-Layer Theory, 9th ed., §15.4).
+//
+// Reference:
+//   Schlichting, H. & Gersten, K. — Boundary-Layer Theory, 9th ed. (2017)
+//   Thwaites, B. — "Approximate calculation of the laminar boundary layer,"  (1949)
+//   von Kármán, T. — "The laminar and turbulent friction in plane walls," (1921)
+//
+// Inputs:
+//   velocityMs    — freestream velocity [m/s]
+//   chordM        — plate chord (or distance from leading edge) [m]
+//   densityKgM3   — freestream density [kg/m³]
+//   viscosityPaS  — dynamic viscosity [Pa·s]
+//   ReCrit        — critical Reynolds number for transition (default 5×10⁵)
+//
+// Returns:
+//   Re_x_tr       — transition Reynolds number (redundant — equals ReCrit)
+//   x_tr          — transition location from leading edge [m]
+//   Re_L          — Reynolds number at chord trailing edge
+//   Cf_lam        — mean laminar friction coefficient (Blasius)
+//   Cf_turb       — mean turbulent friction coefficient (Prandtl–Schlichting)
+//   Cf_avg        — weighted-average Cf over the entire plate
+//   x_tr_ratio    — x_tr / chord (0–1)
+//   regime        — 'fully laminar' | 'transition' | 'fully turbulent'
+
+export interface TransitionResult {
+  Re_x_tr: number;
+  x_tr: number;
+  Re_L: number;
+  Cf_lam: number;
+  Cf_turb: number;
+  Cf_avg: number;
+  x_tr_ratio: number;
+  regime: 'fully laminar' | 'transition' | 'fully turbulent';
+}
+
+export function laminarTurbulentTransition(
+  velocityMs: number,
+  chordM: number,
+  densityKgM3: number,
+  viscosityPaS: number,
+  ReCrit = 5e5,
+): TransitionResult {
+  if (velocityMs <= 0) throw new Error('velocityMs must be > 0');
+  if (chordM <= 0) throw new Error('chordM must be > 0');
+  if (densityKgM3 <= 0) throw new Error('densityKgM3 must be > 0');
+  if (viscosityPaS <= 0) throw new Error('viscosityPaS must be > 0');
+
+  // Reynolds number at trailing edge
+  const Re_L = (densityKgM3 * velocityMs * chordM) / viscosityPaS;
+
+  // Transition location
+  const x_tr = (ReCrit * viscosityPaS) / (densityKgM3 * velocityMs);
+  const x_tr_ratio = Math.min(x_tr / chordM, 1);
+
+  // Blasius laminar skin-friction coefficient: Cf = 1.328 / sqrt(Re)
+  const Cf_lam = 1.328 / Math.sqrt(Re_L);
+
+  // Prandtl–Schlichting turbulent skin-friction: Cf = 0.455 / (log10(Re_L))^2.58
+  const Cf_turb = 0.455 / Math.pow(Math.log10(Math.max(Re_L, 1e3)), 2.58);
+
+  // Weighted average: laminar portion × Cf_lam + turbulent portion × Cf_turb
+  const Cf_avg = x_tr_ratio * Cf_lam + (1 - x_tr_ratio) * Cf_turb;
+
+  // Regime classification
+  let regime: TransitionResult['regime'];
+  if (Re_L < ReCrit) {
+    regime = 'fully laminar';
+  } else if (x_tr_ratio < 1) {
+    regime = 'transition';
+  } else {
+    regime = 'fully turbulent';
+  }
+
+  return {
+    Re_x_tr: ReCrit,
+    x_tr,
+    Re_L,
+    Cf_lam,
+    Cf_turb,
+    Cf_avg,
+    x_tr_ratio,
+    regime,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Model 17 — Drag Increase Due to Transition (entity drag delta)
+// ---------------------------------------------------------------------------
+//
+// Computes the drag penalty of having a laminar–turbulent transition
+// versus fully-laminar or fully-turbulent flow. Useful for comparing
+// natural-laminar-flow (NLF) airfoils vs turbulent airfoils.
+//
+// Returns the difference in mean Cf: ΔCf = Cf_transition − Cf_fully_turbulent
+// A negative ΔCf means the transition location reduces drag.
+
+export interface DragDeltaResult {
+  Cf_fully_laminar: number;
+  Cf_fully_turbulent: number;
+  Cf_transition: number;
+  dragReduction: number; // positive = drag saved by laminar run
+  transitionFraction: number; // x_tr / chord
+}
+
+export function dragDeltaFromTransition(
+  velocityMs: number,
+  chordM: number,
+  densityKgM3: number,
+  viscosityPaS: number,
+  ReCrit = 5e5,
+): DragDeltaResult {
+  const tr = laminarTurbulentTransition(
+    velocityMs,
+    chordM,
+    densityKgM3,
+    viscosityPaS,
+    ReCrit,
+  );
+
+  return {
+    Cf_fully_laminar: tr.Cf_lam,
+    Cf_fully_turbulent: tr.Cf_turb,
+    Cf_transition: tr.Cf_avg,
+    dragReduction: tr.Cf_turb - tr.Cf_avg,
+    transitionFraction: tr.x_tr_ratio,
+  };
+}
