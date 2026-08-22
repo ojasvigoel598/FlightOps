@@ -468,28 +468,35 @@ export default function FunMode() {
       if (integrityRef.current <= 0 || fuelUsedRef.current > 100) {
         clearInterval(flightRef.current!);
         flightRef.current = null;
-        finishFlight(false);
+        finishFlightWithValues({ completed: false, alt: currentAlt, dist: currentDist, spd: currentSpeed });
       }
 
       if (progress >= 1) {
         progress = 1;
         clearInterval(flightRef.current!);
         flightRef.current = null;
-        setTimeout(() => finishFlight(true), 1000);
+        setTimeout(() => finishFlightWithValues({ completed: true, alt: currentAlt, dist: currentDist, spd: currentSpeed }), 1000);
       }
     }, 30);
   }, [flying, selectedMission, result, joystick.throttle]);
 
-  const finishFlight = useCallback((completed: boolean) => {
+  const finishFlightWithValues = useCallback(({ completed, alt, dist, spd }: {
+    completed: boolean;
+    alt: number;
+    dist: number;
+    spd: number;
+  }) => {
+    const finalIntegrity = integrityRef.current;
+    const finalFuelUsed = fuelUsedRef.current;
     const stats: Record<string, number> = {
-      altitude,
-      distance,
-      maxSpeed,
-      flightTime,
-      fuelUsedKg: fuelUsed,
-      fuelRemainingPct: Math.max(0, 100 - fuelUsed),
-      landed: completed && integrity > 0 ? 1 : 0,
-      integrity,
+      altitude: alt,
+      distance: dist,
+      maxSpeed: Math.max(maxSpeed, spd * 3.6),
+      flightTime: flightTime,
+      fuelUsedKg: finalFuelUsed,
+      fuelRemainingPct: Math.max(0, 100 - finalFuelUsed),
+      landed: completed && finalIntegrity > 0 ? 1 : 0,
+      integrity: finalIntegrity,
       cruiseSpeed: result.perf.cruiseSpeedMs * joystick.throttle,
       takeoffDist: 400,
       maxG: 1 + Math.abs(joystick.elevator) * 3,
@@ -505,7 +512,7 @@ export default function FunMode() {
       setFlightProgress(0);
       setActiveEvent(null);
     }, 2000);
-  }, [altitude, distance, maxSpeed, flightTime, fuelUsed, integrity, result, joystick, selectedMission]);
+  }, [maxSpeed, flightTime, result, joystick, selectedMission]);
 
   useEffect(() => {
     return () => { if (flightRef.current) clearInterval(flightRef.current); };
