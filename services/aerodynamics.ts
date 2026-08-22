@@ -817,3 +817,262 @@ export function analyzeFlight(input: FlightConditionInput): AeroAnalysis {
     cpMax,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Blade Element Theory (BET) — propeller / rotor performance
+// ---------------------------------------------------------------------------
+//
+// The blade is divided into N radial stations from hub radius to tip.
+// At each station we compute the local inflow angle, effective angle of
+// attack, section forces (lift and drag), and integrate to obtain total
+// thrust and torque.
+//
+// Reference: Anderson, Introduction to Flight §6.4; McCormick, Aerodynamics
+// of Aeronautical Propulsion Ch. 3.
+//
+// Assumptions:
+// - Incompressible flow (valid below ~M 0.5 at blade tip)
+// - Quasi-steady: no wake rotation or compressibility corrections
+// - Lift slope from thin airfoil theory: cl_alpha = 2π
+// - Drag model: Cd = cd0 + k·Cl² (parabolic polar per section)
+// - Hub losses modelled by thrust loss factor at the root
+// - No blade twist distribution supplied: constant geometric pitch
+
+export interface PropellerGeometry {
+  /** number of blades */
+  nBlades: number;
+  /** propeller radius, m (tip radius) */
+  radiusM: number;
+  /** hub (root) radius, m — typically 0.1–0.2 × radius */
+  hubRadiusM: number;
+  /** geometric pitch, m — axial advance per revolution */
+  pitchM: number;
+  /** chord at each radial station (normalised 0–1), m */
+  chord: number[];
+  /** section lift-curve slope at each radial station, 1/rad (typically ≈ 2π) */
+  clAlpha: number[];
+  /** section zero-lift drag coefficient at each radial station */
+  cd0: number[];
+  /** profile drag polar factor k at each radial station (Cd = cd0 + k·Cl²) */
+  sectionK: number[];
+}
+
+export interface PropellerStation {
+  /** radial fraction r/R ∈ (hub, 1) */
+  rOverR: number;
+  /** local chord, m */
+  chordM: number;
+  /** local geometric pitch angle, rad */
+  betaRad: number;
+  /** local inflow angle (advance angle), rad */
+  phiRad: number;
+  /** local angle of attack, rad */
+  alphaRad: number;
+  /** section lift coefficient */
+  cl: number;
+  /** section drag coefficient */
+  cd: number;
+  /** section local thrust, N */
+  dThrust: number;
+  /** section local torque, N·m */
+  dTorque: number;
+  /** local relative velocity, m/s */
+  wLocal: number;
+}
+
+export interface PropellerResult {
+  valid: boolean;
+  warnings: string[];
+  /** total thrust, N */
+  thrustN: number;
+  /** total torque, N·m */
+  torqueNm: number;
+  /** power absorbed = torque × omega, W */
+  powerW: number;
+  /** propulsive efficiency η = T·V / P (dimensionless, 0–1) */
+  efficiency: number;
+  /** advance ratio J = V / (n·D) where n = revs/s, D = 2R */
+  advanceRatio: number;
+  /** RPM */
+  rpm: number;
+  /** thrust coefficient Ct = T / (ρ·n²·D⁴) */
+  thrustCoeff: number;
+  /** power coefficient Cp = P / (ρ·n³·D⁵) */
+  powerCoeff: number;
+  /** station-by-station results */
+  stations: PropellerStation[];
+}
+
+/**
+ * Blade Element Theory analysis for a propeller.
+ *
+ * @param geometry  blade geometry (chord, clAlpha, cd0, sectionK arrays)
+ * @param rpm       propeller rotational speed in revolutions per minute
+ * @param velocityMs freestream velocity (advance speed), m/s
+ * @param densityKgM3 air density, kg/m³
+ * @param nStations number of radial integration stations (10–50)
+ * @param hubLosses hub loss factor (0–1; 1 = no losses)
+ * @param tipLoss   Prandtl tip-loss factor applied at the outermost station
+ * @returns thrust, torque, power, efficiency, station data
+ */
+export function bladeElementPropeller(
+  geometry: PropellerGeometry,
+  rpm: number,
+  velocityMs: number,
+  densityKgM3: number,
+  nStations: number = 20,
+  hubLosses: number = 0.95,
+  tipLoss: boolean = true,
+): PropellerResult {
+  // Input validation
+  assertPositive('geometry.radiusM', geometry.radiusM);
+  assertPositive('geometry.hubRadiusM', geometry.hubRadiusM);
+  if (geometry.hubRadiusM >= geometry.radiusM) {
+    throw new Error('aerodynamics: hubRadiusM must be < radiusM');
+  }
+  assertPositive('geometry.pitchM', geometry.pitchM);
+  assertPositive('rpm', rpm);
+  assertFinite('velocityMs', velocityMs);
+  if (velocityMs < 0) throw new Error('aerodynamics: velocityMs must be ≥ 0');
+  assertPositive('densityKgM3', densityKgM3);
+  if (!Number.isInteger(nStations) || nStations < 4 || nStations > 100) {
+    throw new Error(`aerodynamics: nStations must be an integer in [4, 100], got ${nStations}`);
+  }
+
+  const R = geometry.radiusM;
+  const rHub = geometry.hubRadiusM;
+  const B = geometry.nBlades;
+  const P = geometry.pitchM;
+  const omega = (rpm * 2 * PI) / 60; // rad/s
+  const n = rpm / 60; // revs/s
+  const D = 2 * R;
+  const J = velocityMs > 0 && n > 0 ? velocityMs / (n * D) : 0;
+
+  const warnings: string[] = [];
+
+  // Check array lengths
+  if (
+    geometry.chord.length !== nStations ||
+    geometry.clAlpha.length !== nStations ||
+    geometry.cd0.length !== nStations ||
+    geometry.sectionK.length !== nStations
+  ) {
+    warnings.push(
+      `Blade arrays (chord, clAlpha, cd0, sectionK) must each have nStations (${nStations}) entries. ` +
+      `Received: chord=${geometry.chord.length}, clAlpha=${geometry.clAlpha.length}, ` +
+      `cd0=${geometry.cd0.length}, sectionK=${geometry.sectionK.length}. ` +
+      'Using first valid value for all stations.',
+    );
+  }
+
+  function safeGet(arr: number[], i: number, fallback: number): number {
+    return i < arr.length ? arr[i] : fallback;
+  }
+
+  const stations: PropellerStation[] = [];
+  let totalThrust = 0;
+  let totalTorque = 0;
+
+  // Integrate from hub to tip using the trapezoidal rule
+  for (let i = 0; i < nStations; i++) {
+    // Radial station: distribute linearly from hub to tip
+    const rFraction = rHub / R + (i + 0.5) * ((1 - rHub / R) / nStations);
+    const r = rFraction * R;
+    const dr = ((1 - rHub / R) * R) / nStations; // radial width
+
+    // Section geometry
+    const c = safeGet(geometry.chord, i, geometry.chord[0] ?? 0.1 * R);
+    const cla = safeGet(geometry.clAlpha, i, 2 * PI);
+    const cd0 = safeGet(geometry.cd0, i, 0.01);
+    const k = safeGet(geometry.sectionK, i, 0.05);
+
+    // Local geometric pitch angle: tan(β) = P / (2π·r)
+    const beta = Math.atan2(P, 2 * PI * r);
+
+    // Inflow velocity components (ignoring wake rotation for simplicity)
+    const Vaxial = velocityMs;
+    const Vtangential = omega * r;
+
+    // Inflow angle: tan(φ) = Vaxial / Vtangential (at blade station)
+    // For a stationary propeller (V=0, pure rotor), φ → 90°
+    const phi = Math.atan2(Vaxial, Vtangential);
+
+    // Angle of attack at this station
+    const alpha = beta - phi;
+
+    // Section relative velocity
+    const wLocal = Math.hypot(Vaxial, Vtangential);
+
+    // Section forces
+    const cl = cla * alpha;
+    const cd = cd0 + k * cl * cl;
+
+    // Force per unit span in the axial direction (thrust direction)
+    // and tangential direction (torque-producing)
+    const qLocal = 0.5 * densityKgM3 * wLocal * wLocal;
+    const liftPerSpan = qLocal * c * cl;
+    const dragPerSpan = qLocal * c * cd;
+
+    // Resolve into axial (thrust) and tangential (torque-producing) components
+    const dThrust = liftPerSpan * Math.cos(phi) - dragPerSpan * Math.sin(phi);
+    const dTorque = (liftPerSpan * Math.sin(phi) + dragPerSpan * Math.cos(phi)) * r;
+
+    // Prandtl tip-loss factor at the outermost station
+    let tipFactor = 1;
+    if (tipLoss && i === nStations - 1 && B > 0) {
+      // Prandtl: F = (2/π) · arccos(exp(−f))
+      // f = (B/2) · (R − r) / (r · sin(φ))
+      const fArg = (B / 2) * (R - r) / (r * Math.max(Math.sin(phi), 1e-6));
+      tipFactor = fArg > 20 ? 0 : (2 / PI) * Math.acos(Math.exp(-fArg));
+    }
+
+    // Integrate: thrust = ∫ dT · 2πr dr, torque = ∫ dQ · 2πr dr
+    const dThrustIntegrated = dThrust * 2 * PI * r * dr * B * tipFactor * hubLosses;
+    const dTorqueIntegrated = dTorque * 2 * PI * r * dr * B * tipFactor * hubLosses;
+
+    totalThrust += dThrustIntegrated;
+    totalTorque += dTorqueIntegrated;
+
+    stations.push({
+      rOverR: rFraction,
+      chordM: c,
+      betaRad: beta,
+      phiRad: phi,
+      alphaRad: alpha,
+      cl,
+      cd,
+      dThrust: dThrustIntegrated,
+      dTorque: dTorqueIntegrated,
+      wLocal,
+    });
+  }
+
+  // Power and efficiency
+  const powerW = totalTorque * omega;
+  const propulsiveEfficiency = powerW > 0 ? (totalThrust * velocityMs) / powerW : 0;
+
+  // Non-dimensional coefficients
+  const Ct = n > 0 ? totalThrust / (densityKgM3 * n * n * D * D * D * D) : 0;
+  const Cp = n > 0 ? powerW / (densityKgM3 * n * n * n * D * D * D * D * D) : 0;
+
+  if (propulsiveEfficiency > 1) {
+    warnings.push('Efficiency > 1 — model assumption breakdown (check inputs).');
+  }
+  if (J > 1.5) {
+    warnings.push('Advance ratio J > 1.5 — thrust may be negative (windmilling region).');
+  }
+
+  return {
+    valid: warnings.length === 0,
+    warnings,
+    thrustN: totalThrust,
+    torqueNm: totalTorque,
+    powerW,
+    efficiency: Math.max(0, Math.min(propulsiveEfficiency, 1)),
+    advanceRatio: J,
+    rpm,
+    thrustCoeff: Ct,
+    powerCoeff: Cp,
+    stations,
+  };
+}
