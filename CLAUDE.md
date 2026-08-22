@@ -531,6 +531,8 @@ AI agents (Codebuff, Claude, Claude Code, Codex, GitHub Actions, bot, AI) are de
 
 **NEVER** create commits under `codebuff-team`, `Codebuff`, `Claude`, `Claude Code`, `bot`, `AI`, `GitHub Actions`, or any other agent identity.
 
+**NEVER** add `Co-Authored-By: Codebuff` or any agent `Co-Authored-By` footer to commit messages.
+
 **NEVER** change Git identity automatically.
 
 Before every commit, verify:
