@@ -9,8 +9,8 @@
   <img src="https://img.shields.io/badge/React_Native-0.79-blue" alt="React Native">
   <img src="https://img.shields.io/badge/Expo-53-black" alt="Expo">
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Tests-145-passing-brightgreen" alt="145 Tests">
-  <img src="https://img.shields.io/badge/Aero_Models-15-ff9900" alt="15 Aero Models">
+  <img src="https://img.shields.io/badge/Tests-157-passing-brightgreen" alt="157 Tests">
+  <img src="https://img.shields.io/badge/Aero_Models-17-ff9900" alt="17 Aero Models">
   <img src="https://img.shields.io/badge/Platform-Web_%7C_iOS_%7C_Android-blueviolet" alt="Cross-platform">
 </p>
 
@@ -163,7 +163,7 @@ R = (V × L/D × η) / (g × TSFC) = 242 km
 
 A self-contained, dependency-free **linear-aerodynamics library** that runs on any platform. Same validated logic on web, iOS, and Android.
 
-### 15 Implemented Models
+### 17 Implemented Models
 
 | # | Model | Method | What it does |
 |---|-------|--------|-------------|
@@ -182,6 +182,8 @@ A self-contained, dependency-free **linear-aerodynamics library** that runs on a
 | 13 | Duhamel Superposition | Convolution with Wagner | Arbitrary α histories |
 | 14 | Discrete Vortex | Kelvin-shed wake (UVLM-lite) | Time-domain circulation |
 | 15 | **Blade Element Theory** | McCormick Ch. 3 | Propeller thrust, torque, efficiency |
+| 16 | **Laminar–Turbulent Transition** | Thwaites + Schlichting | Transition location, friction coefficients |
+| 17 | **Drag Delta (Transition)** | Cf comparison | Drag penalty from transition location |
 
 ---
 
@@ -327,6 +329,7 @@ All aero computations run on-device in real time. Measured on a mid-range laptop
 | **Blade Element Theory** | Propeller analysis is a standard aero curriculum topic — now available on-device |
 | **ISA Atmosphere** | Foundation for any flight condition analysis |
 | **Prandtl-Glauert** | Bridges incompressible theory to real cruise conditions (M < 0.7) |
+| **Laminar–Turbulent Transition** | Shows where boundary layer transitions — key for drag prediction |
 
 ### What's NOT Here (and Why)
 
@@ -361,12 +364,12 @@ FlightOps follows methods documented in:
 ## Testing
 
 ```bash
-pnpm test       # Run all 145 tests
+pnpm test       # Run all 157 tests
 ```
 
 | Suite | Tests | What it covers |
 |-------|-------|----------------|
-| **Aerodynamics** | **55** | ISA, Cp, CL convergence, α_L0, Prandtl-Glauert, Cm, **NACA 2412 wind-tunnel validation**, **BET propeller (11 tests)** |
+| **Aerodynamics** | **67** | ISA, Cp, CL convergence, α_L0, Prandtl-Glauert, Cm, **NACA 2412 wind-tunnel validation**, **BET propeller (11 tests)**, **laminar-turbulent transition (12 tests)** |
 | Unsteady | 23 | Bessel Wronskian, Theodorsen limits, Wagner bounds, Duhamel |
 | Discrete Vortex | 8 | Kelvin conservation, Wagner step-response |
 | Mission Design | 15 | Preset missions, requirements, scoring, mass breakdown |
@@ -475,7 +478,7 @@ AsyncStorage (save state) — no backend required
 | Charts | react-native-svg |
 | Audio | Web Audio API (synthesis, no external files) |
 | Icons | @expo/vector-icons |
-| Testing | Vitest (145 tests) |
+| Testing | Vitest (157 tests) |
 | Validation | Python harness (scripts/validate_aero.py) |
 | Deployment | GitHub Actions → GitHub Pages |
 
