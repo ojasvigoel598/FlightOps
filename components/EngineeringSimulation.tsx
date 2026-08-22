@@ -204,12 +204,15 @@ export default function EngineeringSimulation() {
       setFlightState((prev) => {
         if (!prev) return prev;
 
-        // Apply autopilot
+        // Apply autopilot commands
         const cmd = autopilotForPhase(prev.currentPhase, prev);
         let next = { ...prev };
         if (cmd.throttle !== undefined) next.throttle = cmd.throttle;
         if (cmd.gear !== undefined) next.gearDown = cmd.gear;
         if (cmd.flaps !== undefined) next.flapDeg = cmd.flaps;
+        if (cmd.pitch !== undefined) next.pitch = cmd.pitch;
+        if (cmd.roll !== undefined) next.roll = cmd.roll;
+        if (cmd.brake !== undefined) next.brakeOn = cmd.brake;
 
         // Apply engine failure
         if (engineFailure && !next.engineFailed) {
