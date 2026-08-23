@@ -51,6 +51,7 @@ jobs:
         run: |
           # Replace the broken Expo root with a working landing page
           # that has QR codes, play button, and feature highlights
+          rm -f dist/index.html
           cp PLAY.html dist/index.html
           cp PLAY.html dist/PLAY.html 2>/dev/null || true
           cp RUN_ANYWHERE.html dist/RUN_ANYWHERE.html 2>/dev/null || true
@@ -60,4 +61,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          keep_files: true
+          keep_files: false
