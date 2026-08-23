@@ -17,7 +17,7 @@ import { ENGINES, FUELS, WINGS } from '@/constants/config';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
 import { useGame } from '@/hooks/useGame';
 import { computeVehicleStats } from '@/services/simulation';
-import { useAlert } from '@/template';
+import { useAlert } from '@/template/ui';
 
 const toOptions = (record: Record<string, PartOption>): PartOption[] => Object.values(record);
 

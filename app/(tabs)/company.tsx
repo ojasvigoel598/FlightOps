@@ -5,7 +5,7 @@ import { Button, Panel, Screen, ScreenHeader, StatBar, UpgradeCard } from '@/com
 import { UPGRADES } from '@/constants/config';
 import { colors, fontSize, fontWeight, radius, spacing } from '@/constants/theme';
 import { useGame } from '@/hooks/useGame';
-import { useAlert } from '@/template';
+import { useAlert } from '@/template/ui';
 
 export default function CompanyScreen() {
   const { showAlert } = useAlert();
