@@ -49,10 +49,11 @@ jobs:
 
       - name: Build landing page and copy play pages
         run: |
-          # Replace the broken Expo root with a working landing page
-          # that has QR codes, play button, and feature highlights
+          # Replace the broken Expo root with the standalone flight game
+          # Pure HTML/CSS/JS — no React, no Expo, no native modules
           rm -f dist/index.html
-          cp PLAY.html dist/index.html
+          cp FLIGHT_GAME.html dist/index.html
+          cp FLIGHT_GAME.html dist/FLIGHT_GAME.html 2>/dev/null || true
           cp PLAY.html dist/PLAY.html 2>/dev/null || true
           cp RUN_ANYWHERE.html dist/RUN_ANYWHERE.html 2>/dev/null || true
 

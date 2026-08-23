@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>FlightOps — Fly Now</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0D1B2A;--surface:#1B2838;--surface2:#253446;--border:#334155;--primary:#FFB020;--accent:#4ADE80;--red:#EF4444;--blue:#3B82F6;--text:#E2E8F0;--faint:#64748B;--font:system-ui,-apple-system,BlinkMacSystemFont,sans-serif}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
+#app{display:flex;flex-direction:column;height:100vh}
+/* --- Screen: Menu / Design / Flight --- */
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden}
+.screen.active{display:flex}
+/* Menu */
+#menu{justify-content:center;align-items:center;gap:24px;text-align:center;padding:20px}
+#menu h1{font-size:42px;color:var(--primary);text-shadow:0 0 30px rgba(255,176,32,0.3)}
+#menu .subtitle{color:var(--faint);font-size:16px;max-width:500px;line-height:1.5}
+.menu-btn{background:var(--primary);color:#000;border:none;border-radius:12px;padding:16px 48px;font-size:20px;font-weight:700;cursor:pointer;transition:transform 0.15s}
+.menu-btn:hover{transform:scale(1.05)}
+.menu-btn.secondary{background:var(--surface);color:var(--text);border:2px solid var(--border)}
+/* Design screen */
+#design{overflow-y:auto;padding:20px;gap:16px}
+.section-title{color:var(--primary);font-size:18px;font-weight:700;margin-bottom:8px}
+.option-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
+.option-card{min-width:140px;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:border-color 0.15s,background 0.15s;text-align:center;flex-shrink:0}
+.option-card:hover{border-color:var(--primary)}
+.option-card.active{border-color:var(--primary);background:rgba(255,176,32,0.08)}
+.option-card .icon{font-size:28px}
+.option-card .label{font-size:13px;font-weight:600;margin-top:4px}
+.option-card .tip{font-size:11px;color:var(--faint);margin-top:4px;line-height:1.3}
+.option-card .tag{display:inline-block;font-size:10px;background:var(--surface2);color:var(--primary);border-radius:6px;padding:2px 8px;margin-top:6px}
+.perf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.perf-item{background:var(--surface);border-radius:8px;padding:10px;text-align:center}
+.perf-item .label{font-size:11px;color:var(--faint)}
+.perf-item .value{font-size:18px;font-weight:700;margin-top:2px}
+.perf-item .value.good{color:var(--accent)}
+.perf-item .value.bad{color:var(--red)}
+/* Mission cards */
+.mission-card{display:flex;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:border-color 0.15s}
+.mission-card:hover{border-color:var(--primary)}
+.mission-card .m-icon{font-size:28px;flex-shrink:0}
+.mission-card .m-name{font-weight:700;font-size:14px}
+.mission-card .m-desc{font-size:12px;color:var(--faint);margin-top:2px;line-height:1.3}
+.mission-card .m-meta{display:flex;gap:6px;margin-top:6px}
+.mission-card .m-meta span{font-size:10px;background:var(--surface2);padding:2px 8px;border-radius:6px}
+/* Flight screen */
+#flight-screen{position:relative}
+#flight-canvas{flex:1;display:block;width:100%;background:#6CB4EE}
+/* HUD */
+.hud{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:4px;pointer-events:none}
+.hud-item{flex:1;background:rgba(0,0,0,0.65);border-radius:6px;padding:4px 8px;text-align:center}
+.hud-item .h-label{font-size:9px;color:var(--faint)}
+.hud-item .h-value{font-size:15px;font-weight:700;color:var(--primary)}
+.progress-bar{position:absolute;top:56px;left:8px;right:8px;height:6px;background:rgba(0,0,0,0.4);border-radius:3px;overflow:hidden;pointer-events:none}
+.progress-fill{height:100%;background:var(--primary);border-radius:3px;transition:width 0.1s}
+/* Joystick panel */
+.controls-panel{position:absolute;bottom:0;left:0;right:0;background:rgba(13,27,42,0.92);padding:10px 16px;display:flex;flex-direction:column;gap:8px;backdrop-filter:blur(8px)}
+.ctrl-row{display:flex;align-items:center;gap:8px}
+.ctrl-label{font-size:12px;color:var(--faint);width:52px;flex-shrink:0}
+.ctrl-bar{flex:1;height:10px;background:var(--surface2);border-radius:5px;position:relative;overflow:visible}
+.ctrl-fill{height:100%;border-radius:5px;background:#22C55E;transition:width 0.05s}
+.ctrl-indicator{position:absolute;top:-3px;width:16px;height:16px;border-radius:50%;background:var(--primary);border:2px solid #000;transform:translateX(-50%);transition:left 0.05s}
+.ctrl-btn{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:none;color:var(--primary);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ctrl-btn:active{background:var(--primary);color:#000}
+.ctrl-value{font-size:13px;font-weight:700;color:var(--primary);width:40px;text-align:right;flex-shrink:0}
+/* Launch/Back buttons */
+.launch-btn{background:var(--primary);color:#000;border:none;border-radius:12px;padding:14px;font-size:18px;font-weight:700;cursor:pointer}
+.launch-btn:disabled{opacity:0.4;cursor:default}
+.launch-btn:hover:not(:disabled){transform:scale(1.02)}
+.back-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--accent);font-size:13px;cursor:pointer;width:100%;text-align:center}
+.back-btn:hover{border-color:var(--accent)}
+/* Event banner */
+.event-banner{position:absolute;top:70px;left:8px;right:8px;background:rgba(0,0,0,0.85);border-radius:8px;padding:10px;display:flex;align-items:center;gap:10px;border-left:4px solid var(--blue);z-index:20;pointer-events:none}
+.event-banner.severe{border-left-color:var(--red)}
+.event-banner.moderate{border-left-color:#F59E0B}
+.event-banner .ev-icon{font-size:22px}
+.event-banner .ev-text{font-size:13px;font-weight:600}
+.event-banner .ev-sev{font-size:11px;color:var(--faint)}
+/* Mission info bar */
+.mission-bar{background:var(--surface);border-radius:10px;padding:12px;border:1px solid var(--border)}
+.mission-bar .mb-title{color:var(--primary);font-weight:700;font-size:14px}
+.mission-bar .mb-desc{font-size:12px;color:var(--faint);margin-top:2px}
+.mission-bar .mb-objs{margin-top:6px}
+.mission-bar .mb-obj{font-size:12px;color:var(--text);line-height:1.6}
+.mission-bar .mb-hint{font-size:11px;color:var(--accent);font-style:italic;margin-top:6px}
+/* Result overlay */
+.result-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:30}
+.result-card{background:var(--bg);border-radius:16px;padding:32px;width:85%;max-width:400px;text-align:center}
+.result-grade{font-size:72px;font-weight:900;color:var(--primary)}
+.result-title{font-size:20px;font-weight:700;margin-top:4px}
+.result-sub{font-size:13px;color:var(--faint);margin-top:4px}
+.result-objs{margin-top:16px;text-align:left}
+.result-obj{font-size:13px;padding:4px 0}
+.result-obj.met{color:var(--accent)}
+.result-obj.unmet{color:var(--red)}
+.result-btn{margin-top:20px;background:var(--primary);color:#000;border:none;border-radius:10px;padding:14px 32px;font-size:16px;font-weight:700;cursor:pointer}
+/* Tip box */
+.tip-box{background:var(--surface);border-radius:10px;padding:12px;font-size:12px;color:var(--text);line-height:1.5;border:1px solid var(--border)}
+/* Keyboard hints */
+.key-hints{position:absolute;bottom:140px;left:8px;right:8px;display:flex;justify-content:center;gap:16px;pointer-events:none;opacity:0.6}
+.key-hint{font-size:10px;color:var(--faint);text-align:center}
+.key-hint kbd{background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:monospace;color:var(--text)}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- MENU -->
+  <div id="menu" class="screen active">
+    <div style="font-size:64px">✈️</div>
+    <h1>FlightOps</h1>
+    <p class="subtitle">Design your aircraft, pick a mission, and fly! Learn real aerodynamics while having fun.</p>
+    <button class="menu-btn" onclick="showScreen('design')">🎮 Start Designing</button>
+    <div style="color:var(--faint);font-size:12px;margin-top:12px">Built with real aerodynamics • No API keys needed • Works offline</div>
+  </div>
+
+  <!-- DESIGN -->
+  <div id="design" class="screen">
+    <div id="design-content"></div>
+  </div>
+
+  <!-- FLIGHT -->
+  <div id="flight-screen" class="screen">
+    <canvas id="flight-canvas"></canvas>
+    <div class="hud" id="hud"></div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div id="event-banner"></div>
+    <div class="key-hints" id="key-hints">
+      <div class="key-hint"><kbd>W</kbd><kbd>S</kbd> Throttle</div>
+      <div class="key-hint"><kbd>↑</kbd><kbd>↓</kbd> Pitch</div>
+      <div class="key-hint"><kbd>←</kbd><kbd>→</kbd> Yaw</div>
+      <div class="key-hint"><kbd>G</kbd> Gear</div>
+      <div class="key-hint"><kbd>F</kbd> Flaps</div>
+      <div class="key-hint"><kbd>B</kbd> Brake</div>
+      <div class="key-hint"><kbd>P</kbd> Pause</div>
+    </div>
+    <div class="controls-panel" id="controls-panel">
+      <div id="mission-bar-container"></div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Throttle</span>
+        <button class="ctrl-btn" ontouchstart="adj('throttle',-0.05)" onmousedown="adj('throttle',-0.05)">−</button>
+        <div class="ctrl-bar"><div class="ctrl-fill" id="throttle-fill" style="width:50%"></div></div>
+        <button class="ctrl-btn" ontouchstart="adj('throttle',0.05)" onmousedown="adj('throttle',0.05)">+</button>
+        <span class="ctrl-value" id="throttle-val">50%</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Pitch</span>
+        <button class="ctrl-btn" ontouchstart="adj('pitch',-0.15)" onmousedown="adj('pitch',-0.15)">↓</button>
+        <div class="ctrl-bar"><div class="ctrl-indicator" id="pitch-ind" style="left:50%"></div></div>
+        <button class="ctrl-btn" ontouchstart="adj('pitch',0.15)" onmousedown="adj('pitch',0.15)">↑</button>
+        <span class="ctrl-value" id="pitch-val">—</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Yaw</span>
+        <button class="ctrl-btn" ontouchstart="adj('yaw',-0.15)" onmousedown="adj('yaw',-0.15)">←</button>
+        <div class="ctrl-bar"><div class="ctrl-indicator" id="yaw-ind" style="left:50%"></div></div>
+        <button class="ctrl-btn" ontouchstart="adj('yaw',0.15)" onmousedown="adj('yaw',0.15)">→</button>
+        <span class="ctrl-value" id="yaw-val">—</span>
+      </div>
+      <button class="launch-btn" id="launch-btn" onclick="startFlight()">🛫 Launch Flight Test</button>
+      <button class="back-btn" onclick="showScreen('design')">← Back to Design</button>
+    </div>
+    <!-- Result overlay (hidden) -->
+    <div class="result-overlay" id="result-overlay" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FLIGHTOPS STANDALONE — Complete Flight Physics + Game
+// Ported from services/fun-flight.ts, fun-missions.ts, aircraft-config.ts
+// ============================================================
+
+// ---- Clamp utility ----
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v))}
+
+// ---- WING CONFIG ----
+const WINGS={
+  short:  {spanM:8,areaM2:12,clMax:1.4,cd0:0.022,oswaldE:0.75,label:'Short & Stubby',icon:'✈️',tip:'Fast and sleek, but needs a long runway to take off.',tag:'Fast'},
+  medium: {spanM:10,areaM2:16,clMax:1.6,cd0:0.025,oswaldE:0.80,label:'Medium',icon:'🛩️',tip:'A balanced wing — good for most missions.',tag:'Balanced'},
+  long:   {spanM:14,areaM2:18,clMax:1.8,cd0:0.027,oswaldE:0.85,label:'Long & Slender',icon:'🦅',tip:'Glides beautifully and uses less fuel, but is fragile.',tag:'Efficient'},
+  wide:   {spanM:12,areaM2:24,clMax:1.7,cd0:0.030,oswaldE:0.78,label:'Extra Wide',icon:'🪂',tip:'Lifts heavy loads easily, but is slow.',tag:'Heavy lift'},
+};
+const TAILS={
+  conventional:{label:'Normal Tail',icon:'✈️',tip:'Classic design. Stable, predictable, easy to fly.',tag:'Reliable'},
+  't-tail':{label:'T-Tail',icon:'🔷',tip:'Tail on top. Cleaner airflow, used on many jets.',tag:'Clean'},
+  'v-tail':{label:'V-Tail',icon:'🔷',tip:'Two surfaces in a V. Less drag, trickier to control.',tag:'Low drag'},
+  canard:{label:'Canard',icon:'🐦',tip:'Small wing in front! Prevents stalls.',tag:'Safe'},
+  none:{label:'No Tail',icon:'🔲',tip:'Flying wing. Maximum efficiency, needs computer control.',tag:'Advanced'},
+};
+const ENGINES={
+  piston:   {label:'Propeller',icon:'⚙️',tip:'Simple and cheap. Good for small planes.',tag:'Simple',maxThrustN:3000,fuelBurnRate:0.00018},
+  turboprop:{label:'Turboprop',icon:'💨',tip:'Powerful propeller driven by a turbine.',tag:'Fast prop',maxThrustN:6000,fuelBurnRate:0.00012},
+  turbofan: {label:'Jet Engine',icon:'🚀',tip:'Pure thrust! Fast but thirsty.',tag:'Speed',maxThrustN:12000,fuelBurnRate:0.00008},
+  electric: {label:'Electric',icon:'⚡',tip:'Quiet and green. Limited by battery weight.',tag:'Green',maxThrustN:4000,fuelBurnRate:0},
+};
+const AIRFOILS={
+  naca0012:{label:'Symmetric',icon:'↔️',tip:'Same shape top and bottom. Great for aerobatics.',tag:'Aerobatic'},
+  naca2412:{label:'Mild Curve',icon:'〰️',tip:'Slight curve helps cruise. The Cessna 172 uses this.',tag:'GA'},
+  naca4412:{label:'Deep Curve',icon:'🌊',tip:'Strong lift at low speeds. Great for short fields.',tag:'High lift'},
+  naca0018:{label:'Thick',icon:'📦',tip:'Thick wing for strength. Gliders and heavy aircraft.',tag:'Strong'},
+};
+
+// ---- MISSIONS ----
+const MISSIONS=[
+  {id:'first-flight',name:'First Flight',icon:'🎓',desc:'Your very first flight! Take off, reach 500m, land safely.',cat:'training',diff:1,credit:500,hint:'Use medium wings and a piston engine.',objectives:[{text:'Reach 500 m altitude',param:'altitude',cmp:'>=',val:500,unit:'m'},{text:'Fly 5 km',param:'distance',cmp:'>=',val:5,unit:'km'},{text:'Land safely',param:'landed',cmp:'==',val:1,unit:''}],env:{windMs:3,windDir:270,turbulence:0.1,events:[]}},
+  {id:'circuit',name:'Circuit Training',icon:'🔄',desc:'Fly a traffic pattern: take off, circle, and land back.',cat:'training',diff:1,credit:600,hint:'Medium wings, balanced design.',objectives:[{text:'Climb to 300 m',param:'altitude',cmp:'>=',val:300,unit:'m'},{text:'Fly 8 km total',param:'distance',cmp:'>=',val:8,unit:'km'},{text:'Land on runway',param:'landed',cmp:'==',val:1,unit:''}],env:{windMs:5,windDir:180,turbulence:0.15,events:[]}},
+  {id:'passenger-hop',name:'Passenger Hop',icon:'👥',desc:'Carry passengers 200 km. Keep them comfortable!',cat:'commercial',diff:3,credit:1200,hint:'Turboprop with long wings for range.',objectives:[{text:'Fly 200 km',param:'distance',cmp:'>=',val:200,unit:'km'},{text:'Cruise above 80 m/s',param:'maxSpeed',cmp:'>=',val:80,unit:'m/s'},{text:'Land with fuel',param:'fuelPct',cmp:'>=',val:10,unit:'%'}],env:{windMs:8,windDir:225,turbulence:0.2,events:[{triggerProgress:0.4,type:'gust',severity:2,durS:5,desc:'Thermal turbulence!'}]}},
+  {id:'cargo-run',name:'Heavy Cargo',icon:'📦',desc:'Haul heavy cargo over 300 km. Strong wings needed!',cat:'commercial',diff:3,credit:1500,hint:'Wide wings, powerful engine.',objectives:[{text:'Fly 300 km',param:'distance',cmp:'>=',val:300,unit:'km'},{text:'Reach 4000 m altitude',param:'altitude',cmp:'>=',val:4000,unit:'m'},{text:'Land with integrity',param:'integrity',cmp:'>=',val:50,unit:'%'}],env:{windMs:10,windDir:180,turbulence:0.3,events:[{triggerProgress:0.5,type:'crosswind',severity:3,durS:8,desc:'Crosswind near mountains!'}]}},
+  {id:'high-speed',name:'Speed Run',icon:'⚡',desc:'Push your aircraft to the limit! Maximum speed.',cat:'military',diff:4,credit:2000,hint:'Short wings and a jet engine.',objectives:[{text:'Reach 120 m/s',param:'maxSpeed',cmp:'>=',val:120,unit:'m/s'},{text:'Fly 100 km',param:'distance',cmp:'>=',val:100,unit:'km'},{text:'Reach 5000 m',param:'altitude',cmp:'>=',val:5000,unit:'m'}],env:{windMs:5,windDir:90,turbulence:0.1,events:[{triggerProgress:0.3,type:'gust',severity:4,durS:3,desc:'High-speed turbulence!'}]}},
+  {id:'storm-runner',name:'Storm Runner',icon:'⛈️',desc:'Fly through severe weather. Survive the storm!',cat:'challenge',diff:5,credit:3000,hint:'Sturdy wings, strong engine, flaps for control.',objectives:[{text:'Fly 150 km',param:'distance',cmp:'>=',val:150,unit:'km'},{text:'Survive with 30% integrity',param:'integrity',cmp:'>=',val:30,unit:'%'},{text:'Land successfully',param:'landed',cmp:'==',val:1,unit:''}],env:{windMs:15,windDir:315,turbulence:0.7,events:[{triggerProgress:0.25,type:'wind_shear',severity:4,durS:6,desc:'Dangerous wind shear!'},{triggerProgress:0.5,type:'thunderstorm',severity:5,durS:10,desc:'Severe thunderstorm! Hold on!'},{triggerProgress:0.7,type:'icing',severity:3,durS:8,desc:'Icing conditions!'}]}},
+];
+
+// ---- GAME STATE ----
+let G={
+  wing:'medium',tail:'conventional',engine:'turboprop',airfoil:'naca2412',
+  mission:null,
+  // Flight
+  flying:false,paused:false,
+  x:0,alt:0,z:0,
+  airspeed:0,heading:180,vsi:0,
+  pitch:0,roll:0,
+  throttle:0.5,engineRunning:false,
+  gearDown:true,flapDeg:0,brakeOn:true,
+  massKg:1400,fuelKg:300,
+  totalTime:0,distFlown:0,progress:0,
+  integrity:100,icingLevel:0,
+  maxSpeed:0,
+  // Joystick
+  joyPitch:0,joyYaw:0,
+  // Events
+  activeEvent:null,eventLog:[],eventIdx:0,
+  // Design perf
+  perf:{cruiseMs:0,rangeKm:0,maxLd:0,climbMs:0,stallMs:0},
+};
+
+// ---- AUDIO ----
+let audioCtx=null,masterGain=null;
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  masterGain=audioCtx.createGain();
+  masterGain.gain.value=0.15;
+  masterGain.connect(audioCtx.destination);
+}
+let engineOsc=null;
+function startEngineSound(){
+  if(!audioCtx)initAudio();
+  if(engineOsc)return;
+  engineOsc=audioCtx.createOscillator();
+  engineOsc.type='sawtooth';
+  engineOsc.frequency.value=80;
+  const gain=audioCtx.createGain();
+  gain.gain.value=0.08;
+  engineOsc.connect(gain);
+  gain.connect(masterGain);
+  engineOsc.start();
+}
+function updateEngineSound(){
+  if(!engineOsc)return;
+  engineOsc.frequency.value=60+G.throttle*200+G.airspeed*0.5;
+}
+function stopEngineSound(){
+  if(engineOsc){try{engineOsc.stop()}catch(e){};engineOsc=null}
+}
+function playBeep(freq,dur){
+  if(!audioCtx)initAudio();
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.frequency.value=freq;
+  g.gain.value=0.1;
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  o.connect(g);g.connect(masterGain);
+  o.start();o.stop(audioCtx.currentTime+dur);
+}
+
+// ---- SCREEN NAV ----
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='design')renderDesign();
+  if(id==='flight-screen'){resizeCanvas();renderDesignHUD();}
+}
+
+// ---- DESIGN SCREEN ----
+function renderDesign(){
+  const c=document.getElementById('design-content');
+  const perf=computePerf();
+  G.perf=perf;
+  c.innerHTML=`
+    <div class="section-title">🎯 Select a Mission</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+      ${MISSIONS.map(m=>`
+        <div class="mission-card${G.mission&&G.mission.id===m.id?' active':''}" style="${G.mission&&G.mission.id===m.id?'border-color:var(--primary)':''}" onclick="selectMission('${m.id}')">
+          <div class="m-icon">${m.icon}</div>
+          <div>
+            <div class="m-name">${m.name}</div>
+            <div class="m-desc">${m.desc}</div>
+            <div class="m-meta">
+              <span>⭐ ${m.diff}/5</span>
+              <span>💰 ${m.credit}</span>
+              <span>${m.cat}</span>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    ${G.mission?`
+    <div class="mission-bar">
+      <div class="mb-title">${G.mission.icon} ${G.mission.name}</div>
+      <div class="mb-desc">${G.mission.desc}</div>
+      <div class="mb-objs">${G.mission.objectives.map(o=>`<div class="mb-obj">• ${o.text} (${o.val} ${o.unit})</div>`).join('')}</div>
+      <div class="mb-hint">💡 ${G.mission.hint}</div>
+    </div>
+    `:''}
+    <div class="section-title" style="margin-top:16px">✈️ Design Your Aircraft</div>
+    <div class="section-title" style="font-size:14px">Wing</div>
+    <div class="option-row">${Object.entries(WINGS).map(([k,v])=>`
+      <div class="option-card${G.wing===k?' active':''}" onclick="G.wing='${k}';renderDesign()">
+        <div class="icon">${v.icon}</div><div class="label">${v.label}</div>
+        ${G.wing===k?`<div class="tip">${v.tip}</div>`:''}
+        <div class="tag">${v.tag}</div>
+      </div>`).join('')}
+    </div>
+    <div class="section-title" style="font-size:14px">Airfoil</div>
+    <div class="option-row">${Object.entries(AIRFOILS).map(([k,v])=>`
+      <div class="option-card${G.airfoil===k?' active':''}" onclick="G.airfoil='${k}';renderDesign()">
+        <div class="icon">${v.icon}</div><div class="label">${v.label}</div>
+        ${G.airfoil===k?`<div class="tip">${v.tip}</div>`:''}
+        <div class="tag">${v.tag}</div>
+      </div>`).join('')}
+    </div>
+    <div class="section-title" style="font-size:14px">Tail</div>
+    <div class="option-row">${Object.entries(TAILS).map(([k,v])=>`
+      <div class="option-card${G.tail===k?' active':''}" onclick="G.tail='${k}';renderDesign()">
+        <div class="icon">${v.icon}</div><div class="label">${v.label}</div>
+        ${G.tail===k?`<div class="tip">${v.tip}</div>`:''}
+        <div class="tag">${v.tag}</div>
+      </div>`).join('')}
+    </div>
+    <div class="section-title" style="font-size:14px">Engine</div>
+    <div class="option-row">${Object.entries(ENGINES).map(([k,v])=>`
+      <div class="option-card${G.engine===k?' active':''}" onclick="G.engine='${k}';renderDesign()">
+        <div class="icon">${v.icon}</div><div class="label">${v.label}</div>
+        ${G.engine===k?`<div class="tip">${v.tip}</div>`:''}
+        <div class="tag">${v.tag}</div>
+      </div>`).join('')}
+    </div>
+    <div class="section-title" style="margin-top:16px">📊 Performance</div>
+    <div class="perf-grid">
+      <div class="perf-item"><div class="label">Speed</div><div class="value${perf.cruiseMs>80?' good':' bad'}">${(perf.cruiseMs*3.6).toFixed(0)} km/h</div></div>
+      <div class="perf-item"><div class="label">Range</div><div class="value${perf.rangeKm>200?' good':' bad'}">${perf.rangeKm.toFixed(0)} km</div></div>
+      <div class="perf-item"><div class="label">L/D</div><div class="value${perf.maxLd>12?' good':''}">${perf.maxLd.toFixed(0)}:1</div></div>
+      <div class="perf-item"><div class="label">Climb</div><div class="value${perf.climbMs>3?' good':''}">${perf.climbMs.toFixed(1)} m/s</div></div>
+      <div class="perf-item"><div class="label">Stall</div><div class="value">${perf.stallMs.toFixed(0)} m/s</div></div>
+      <div class="perf-item"><div class="label">Mass</div><div class="value">${G.massKg.toFixed(0)} kg</div></div>
+    </div>
+    <div class="tip-box" style="margin-top:16px">
+      ${getTip()}
+    </div>
+    <button class="launch-btn" style="margin-top:16px" onclick="showScreen('flight-screen');renderDesignHUD();" ${!G.mission?'disabled':''}>🛫 Enter Cockpit</button>
+    <div style="height:60px"></div>
+  `;
+}
+
+function selectMission(id){
+  G.mission=MISSIONS.find(m=>m.id===id)||null;
+  renderDesign();
+}
+
+function getTip(){
+  const tips=[];
+  if(G.wing==='long')tips.push('Long, slender wings cut through the air with less effort — like a glider. Gliders have very long wings for this reason.');
+  if(G.wing==='short')tips.push('Short wings make the aircraft fast but need more speed to stay in the air. Fighter jets have short wings.');
+  if(G.wing==='wide')tips.push('Wide wings create lots of lift — perfect for heavy cargo. But they create more drag too.');
+  if(G.engine==='turbofan')tips.push('Jet engines are fast but burn lots of fuel. That\'s why airliners fly at 35,000 ft — thinner air means less drag.');
+  if(G.engine==='electric')tips.push('Electric motors are efficient but batteries are heavy. This is the biggest challenge in electric aviation today.');
+  if(G.tail==='canard')tips.push('A canard creates lift AND prevents the main wing from stalling. Many modern fighters use this.');
+  if(G.tail==='none')tips.push('Flying wings have no tail — all lift comes from the wing. Most efficient shape, but needs computer control.');
+  if(G.airfoil==='naca4412')tips.push('A curved airfoil creates more lift at low speeds — great for short runways. Downside is more drag at high speed.');
+  if(G.airfoil==='naca0012')tips.push('A symmetric airfoil generates zero lift at zero AoA. Used on aerobatic planes.');
+  if(!tips.length)tips.push('Select different options to learn how each choice affects performance!');
+  return tips[0];
+}
+
+// ---- PERFORMANCE COMPUTATION ----
+function computePerf(){
+  const w=WINGS[G.wing]||WINGS.medium;
+  const e=ENGINES[G.engine]||ENGINES.turboprop;
+  const AR=w.spanM*w.spanM/w.areaM2;
+  const mass=1200+200+(G.engine==='turbofan'?400:0);
+  G.massKg=mass;
+  // Climb rate
+  const climbMs=(e.maxThrustN*0.8/mass-9.81/((2*mass)/(1.225*w.areaM2*w.clMax)))*0.5;
+  const climbRate=Math.max(0,climbMs);
+  // Stall speed
+  const stallMs=Math.sqrt(2*mass*9.81/(1.225*w.areaM2*w.clMax));
+  // Max L/D
+  const maxLd=Math.sqrt(Math.PI*AR*w.oswaldE/(4*w.cd0));
+  // Cruise speed (rough: where thrust = drag at max L/D)
+  const cruiseCl=Math.sqrt(Math.PI*AR*w.oswaldE*w.cd0);
+  const cruiseCd=w.cd0+cruiseCl*cruiseCl/(Math.PI*AR*w.oswaldE);
+  const cruiseQ=e.maxThrustN/(w.areaM2*cruiseCd);
+  const cruiseMs=Math.sqrt(Math.max(0,2*cruiseQ/1.225));
+  // Range
+  const fuelKg=300;
+  const sfc=e.fuelBurnRate*3600;
+  const rangeKm=sfc>0?(cruiseMs*3600*fuelKg/(e.fuelBurnRate*e.maxThrustN*0.7))/1000:999;
+  return{cruiseMs:Math.min(cruiseMs,250),rangeKm:Math.min(rangeKm,2000),maxLd,climbMs:climbRate,stallMs};
+}
+
+// ---- FLIGHT PHYSICS ----
+function stepFlight(dt){
+  if(!G.flying||G.paused)return;
+  const w=WINGS[G.wing]||WINGS.medium;
+  const e=ENGINES[G.engine]||ENGINES.turboprop;
+  const AR=w.spanM*w.spanM/w.areaM2;
+
+  G.totalTime+=dt;
+
+  // Engine
+  G.throttle=clamp(G.throttle,0,1);
+  if(!G.engineRunning&&G.throttle>0.05&&!G.brakeOn)G.engineRunning=true;
+  let thrust=0;
+  if(G.engineRunning)thrust=e.maxThrustN*G.throttle;
+  // Altitude effect
+  thrust*=Math.max(0.4,1-G.alt/12000);
+
+  // Event effects
+  let evtDrag=1,evtLift=1,evtThrust=1;
+  if(G.activeEvent){
+    const s=G.activeEvent.severity;
+    switch(G.activeEvent.type){
+      case'gust':evtDrag=1+s*0.1;evtLift=1-s*0.05;break;
+      case'crosswind':evtDrag=1+s*0.15;break;
+      case'icing':evtDrag=1+s*0.2;evtLift=1-s*0.1;evtThrust=1-s*0.03;G.icingLevel=Math.min(1,G.icingLevel+0.02);break;
+      case'wind_shear':evtDrag=1+s*0.25;evtLift=1-s*0.15;break;
+      case'thunderstorm':evtDrag=1+s*0.3;evtLift=1-s*0.1;evtThrust=1-s*0.05;break;
+    }
+    G.integrity=Math.max(0,G.integrity-G.activeEvent.severity*0.08*dt);
+    G.activeEvent.timeLeft-=dt;
+    if(G.activeEvent.timeLeft<=0)G.activeEvent=null;
+  }
+  thrust*=evtThrust;
+  const icingDrag=1+G.icingLevel*0.4;
+
+  // Icing decay
+  if(G.icingLevel>0)G.icingLevel=Math.max(0,G.icingLevel-0.01*dt);
+
+  // Density
+  const rho=1.225*Math.exp(-G.alt/8500);
+  // Dynamic pressure
+  const q=0.5*rho*G.airspeed*G.airspeed;
+  // AoA from pitch
+  const aoaDeg=G.pitch*(180/Math.PI)*5;
+  let cl=2*Math.PI*(aoaDeg*Math.PI/180);
+  cl=clamp(cl,-w.clMax*1.2,w.clMax*evtLift);
+  cl+=(G.flapDeg/30)*0.6;
+  // Drag
+  const cdInduced=(cl*cl)/(Math.PI*AR*w.oswaldE);
+  const gearDrag=G.gearDown?0.015:0;
+  const flapDrag=(G.flapDeg/30)*0.018;
+  const brakeDrag=G.brakeOn&&G.alt<2?0.05:0;
+  const cd=w.cd0+cdInduced+gearDrag+flapDrag+brakeDrag;
+  const drag=q*w.areaM2*cd*evtDrag*icingDrag;
+  // Forward
+  const netF=thrust-drag;
+  G.airspeed=Math.max(0,G.airspeed+(netF/G.massKg)*dt);
+  // Attitude
+  const tgtPitch=G.joyPitch*0.25;
+  G.pitch+=(tgtPitch-G.pitch)*Math.min(1,dt*3);
+  G.pitch=clamp(G.pitch,-0.4,0.4);
+  const tgtRoll=-G.joyYaw*0.3;
+  G.roll+=(tgtRoll-G.roll)*Math.min(1,dt*4);
+  G.roll*=(1-dt*2);
+  // Vertical
+  const lift=q*w.areaM2*cl;
+  const weight=G.massKg*9.81;
+  const netV=lift-weight;
+  G.vsi+=(netV/G.massKg)*dt;
+  G.vsi*=(1-dt*0.5);
+  G.alt+=G.vsi*dt;
+  if(G.alt<=0){
+    G.alt=0;
+    if(G.vsi<-5)G.integrity=Math.max(0,G.integrity+G.vsi*2);
+    G.vsi=Math.max(0,G.vsi);
+    if(G.gearDown)G.airspeed=Math.max(0,G.airspeed-3*dt);
+  }
+  // Heading
+  G.heading+=G.joyYaw*30*dt;
+  G.heading=((G.heading%360)+360)%360;
+  // Position
+  const hRad=G.heading*Math.PI/180;
+  G.x+=G.airspeed*Math.sin(hRad)*dt;
+  G.z-=G.airspeed*Math.cos(hRad)*dt;
+  // Wind
+  if(G.mission){
+    const wRad=G.mission.env.windDir*Math.PI/180;
+    G.x+=G.mission.env.windMs*Math.sin(wRad)*dt*0.3;
+    G.z-=G.mission.env.windMs*Math.cos(wRad)*dt*0.3;
+  }
+  // Fuel
+  if(G.engineRunning&&G.fuelKg>0){
+    G.fuelKg=Math.max(0,G.fuelKg-e.fuelBurnRate*thrust*dt*60);
+    if(G.fuelKg<=0){G.engineRunning=false}
+  }
+  // Distance & progress
+  G.distFlown+=G.airspeed*dt;
+  G.maxSpeed=Math.max(G.maxSpeed,G.airspeed);
+  G.progress=clamp(G.distFlown/100000,0,1);
+
+  // Check events
+  if(G.mission&&G.mission.env.events.length>0){
+    for(const ev of G.mission.env.events){
+      if(!G.eventLog.includes(ev.desc)&&Math.abs(G.progress-ev.triggerProgress)<0.015){
+        G.activeEvent={type:ev.type,desc:ev.desc,severity:ev.severity,timeLeft:ev.durS};
+        G.eventLog.push(ev.desc);
+        playBeep(ev.severity>=4?880:440,0.3);
+      }
+    }
+  }
+
+  // Flight end
+  if(G.progress>=1){
+    G.progress=1;
+    setTimeout(()=>finishFlight(true),500);
+  }
+  if(G.integrity<=0||G.fuelKg<=0&&G.airspeed<5){
+    setTimeout(()=>finishFlight(false),300);
+  }
+
+  // Sound
+  updateEngineSound();
+}
+
+function finishFlight(completed){
+  if(!G.flying)return;
+  G.flying=false;
+  stopEngineSound();
+  // Evaluate objectives
+  const stats={
+    altitude:G.alt,distance:G.distFlown/1000,maxSpeed:G.maxSpeed,
+    fuelPct:Math.max(0,G.fuelKg/3),integrity:G.integrity,
+    landed:completed&&G.integrity>0?1:0,
+  };
+  let objsMet=0;
+  const objResults=[];
+  if(G.mission){
+    for(const o of G.mission.objectives){
+      let met=false;
+      const v=stats[o.param]||0;
+      if(o.cmp==='>=')met=v>=o.val;
+      else if(o.cmp==='<=')met=v<=o.val;
+      else if(o.cmp==='==')met=Math.abs(v-o.val)<0.5;
+      objResults.push({...o,met});
+      if(met)objsMet++;
+    }
+  }
+  const total=G.mission?G.mission.objectives.length:0;
+  const pct=total>0?objsMet/total:0;
+  const grade=pct>=1?'S':pct>=0.8?'A':pct>=0.6?'B':pct>=0.4?'C':pct>=0.2?'D':'F';
+
+  // Show result
+  const overlay=document.getElementById('result-overlay');
+  overlay.style.display='flex';
+  overlay.innerHTML=`
+    <div class="result-card">
+      <div class="result-grade">${grade}</div>
+      <div class="result-title">${completed&&G.integrity>0?'Mission Complete!':'Mission Failed'}</div>
+      <div class="result-sub">${objsMet}/${total} objectives • ${G.mission?Math.round(G.mission.credit*pct):0} credits</div>
+      <div class="result-objs">${objResults.map(o=>`
+        <div class="result-obj ${o.met?'met':'unmet'}">${o.met?'✅':'❌'} ${o.text}</div>
+      `).join('')}</div>
+      <div style="margin-top:12px;font-size:12px;color:var(--faint)">
+        Speed: ${(G.maxSpeed*3.6).toFixed(0)} km/h • Alt: ${G.alt.toFixed(0)} m • Distance: ${(G.distFlown/1000).toFixed(1)} km<br>
+        Fuel used: ${((1-G.fuelKg/3)*100).toFixed(0)}% • Integrity: ${G.integrity.toFixed(0)}%
+      </div>
+      <button class="result-btn" onclick="resetFlight()">Back to Missions</button>
+    </div>
+  `;
+}
+
+function resetFlight(){
+  document.getElementById('result-overlay').style.display='none';
+  G.flying=false;G.paused=false;
+  G.x=0;G.alt=0;G.z=0;G.airspeed=0;G.heading=180;G.vsi=0;
+  G.pitch=0;G.roll=0;G.throttle=0.5;G.engineRunning=false;
+  G.gearDown=true;G.flapDeg=0;G.brakeOn=true;
+  G.fuelKg=300;G.totalTime=0;G.distFlown=0;G.progress=0;
+  G.integrity=100;G.icingLevel=0;G.maxSpeed=0;
+  G.activeEvent=null;G.eventLog=[];
+  stopEngineSound();
+  showScreen('design');
+}
+
+// ---- FLIGHT HUD ----
+function renderDesignHUD(){
+  const hud=document.getElementById('hud');
+  const onGround=G.alt<2;
+  hud.innerHTML=`
+    <div class="hud-item"><div class="h-label">SPD</div><div class="h-value">${(G.airspeed*3.6).toFixed(0)} km/h</div></div>
+    <div class="hud-item"><div class="h-label">ALT</div><div class="h-value">${G.alt.toFixed(0)} m</div></div>
+    <div class="hud-item"><div class="h-label">DST</div><div class="h-value">${(G.distFlown/1000).toFixed(1)} km</div></div>
+    <div class="hud-item"><div class="h-label">FUEL</div><div class="h-value">${Math.max(0,G.fuelKg/3*100).toFixed(0)}%</div></div>
+    <div class="hud-item"><div class="h-label">AC</div><div class="h-value">${G.integrity.toFixed(0)}%</div></div>
+    <div class="hud-item"><div class="h-label">HDG</div><div class="h-value">${G.heading.toFixed(0)}°</div></div>
+  `;
+  document.getElementById('progress-fill').style.width=`${G.progress*100}%`;
+
+  // Event banner
+  const eb=document.getElementById('event-banner');
+  if(G.activeEvent){
+    const cls=G.activeEvent.severity>=4?'severe':G.activeEvent.severity>=2?'moderate':'';
+    const icons={gust:'💨',icing:'🧊',crosswind:'🌪️',wind_shear:'⚠️',thunderstorm:'⛈️'};
+    eb.innerHTML=`<div class="event-banner ${cls}"><div class="ev-icon">${icons[G.activeEvent.type]||'⚠️'}</div><div><div class="ev-text">${G.activeEvent.desc}</div><div class="ev-sev">Severity ${G.activeEvent.severity}/5 • ${G.activeEvent.timeLeft.toFixed(1)}s</div></div></div>`;
+  }else{eb.innerHTML=''}
+
+  // Mission bar
+  const mbc=document.getElementById('mission-bar-container');
+  if(G.mission&&!G.flying){
+    mbc.innerHTML=`<div class="mission-bar"><div class="mb-title">${G.mission.icon} ${G.mission.name}</div><div class="mb-objs">${G.mission.objectives.map(o=>`<div class="mb-obj">• ${o.text}</div>`).join('')}</div></div>`;
+  }else{mbc.innerHTML=''}
+
+  // Controls
+  document.getElementById('throttle-fill').style.width=`${G.throttle*100}%`;
+  document.getElementById('throttle-val').textContent=`${(G.throttle*100).toFixed(0)}%`;
+  document.getElementById('pitch-ind').style.left=`${50+G.joyPitch*45}%`;
+  document.getElementById('pitch-val').textContent=G.joyPitch>0?'↑':G.joyPitch<0?'↓':'—';
+  document.getElementById('yaw-ind').style.left=`${50+G.joyYaw*45}%`;
+  document.getElementById('yaw-val').textContent=G.joyYaw>0?'→':G.joyYaw<0?'←':'—';
+
+  const launchBtn=document.getElementById('launch-btn');
+  if(G.flying){
+    launchBtn.textContent='✈️ Flying...';
+    launchBtn.disabled=true;
+  }else{
+    launchBtn.textContent='🛫 Launch Flight Test';
+    launchBtn.disabled=false;
+  }
+}
+
+// ---- CONTROLS ----
+function adj(axis,delta){
+  if(axis==='throttle')G.throttle=clamp(G.throttle+delta,0,1);
+  else if(axis==='pitch')G.joyPitch=clamp(G.joyPitch+delta,-1,1);
+  else if(axis==='yaw')G.joyYaw=clamp(G.joyYaw+delta,-1,1);
+}
+
+// Keyboard
+const keys={};
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(e.key==='p'||e.key==='P')G.paused=!G.paused;
+  if(!G.flying)return;
+  if(e.key==='g'||e.key==='G')G.gearDown=!G.gearDown;
+  if(e.key==='f'||e.key==='F')G.flapDeg=G.flapDeg>=30?0:G.flapDeg+10;
+  if(e.key==='b'||e.key==='B')G.brakeOn=!G.brakeOn;
+});
+document.addEventListener('keyup',e=>{keys[e.key]=false});
+
+function handleKeyboard(){
+  if(!G.flying||G.paused)return;
+  if(keys['w']||keys['W'])G.throttle=clamp(G.throttle+0.008,0,1);
+  if(keys['s']||keys['S'])G.throttle=clamp(G.throttle-0.008,0,1);
+  if(keys['ArrowUp'])G.joyPitch=clamp(G.joyPitch+0.008,-1,1);
+  if(keys['ArrowDown'])G.joyPitch=clamp(G.joyPitch-0.008,-1,1);
+  if(keys['ArrowLeft'])G.joyYaw=clamp(G.joyYaw-0.008,-1,1);
+  if(keys['ArrowRight'])G.joyYaw=clamp(G.joyYaw+0.008,-1,1);
+}
+
+// ---- START FLIGHT ----
+function startFlight(){
+  if(!G.mission)return;
+  G.flying=true;G.paused=false;
+  G.x=0;G.alt=0;G.z=0;G.airspeed=0;G.heading=180;G.vsi=0;
+  G.pitch=0;G.roll=0;G.throttle=0.5;G.engineRunning=false;
+  G.gearDown=true;G.flapDeg=0;G.brakeOn=true;
+  G.fuelKg=300;G.totalTime=0;G.distFlown=0;G.progress=0;
+  G.integrity=100;G.icingLevel=0;G.maxSpeed=0;
+  G.activeEvent=null;G.eventLog=[];
+  initAudio();startEngineSound();
+}
+
+// ---- 2D CANVAS ----
+const canvas=document.getElementById('flight-canvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){
+  canvas.width=canvas.parentElement.clientWidth;
+  canvas.height=canvas.parentElement.clientHeight;
+}
+
+function drawScene(){
+  resizeCanvas();
+  const W=canvas.width,H=canvas.height;
+  const groundY=H*0.7;
+
+  // Sky gradient
+  const skyGrad=ctx.createLinearGradient(0,0,0,groundY);
+  if(G.alt>3000){skyGrad.addColorStop(0,'#0a1628');skyGrad.addColorStop(1,'#1a3a5c')}
+  else{skyGrad.addColorStop(0,'#1a3a5c');skyGrad.addColorStop(0.5,'#6CB4EE');skyGrad.addColorStop(1,'#B0D4F1')}
+  ctx.fillStyle=skyGrad;
+  ctx.fillRect(0,0,W,groundY);
+
+  // Clouds
+  const cloudOffset=(G.totalTime*10)%W;
+  ctx.fillStyle='rgba(255,255,255,0.5)';
+  for(let i=0;i<8;i++){
+    const cx=(i*W/4+cloudOffset*0.3)%(W+100)-50;
+    const cy=30+i*35+Math.sin(i*2.1)*20;
+    drawCloud(cx,cy,30+i*10);
+  }
+
+  // Ground
+  const groundGrad=ctx.createLinearGradient(0,groundY,0,H);
+  groundGrad.addColorStop(0,'#2d5a27');
+  groundGrad.addColorStop(0.3,'#1a3a14');
+  groundGrad.addColorStop(1,'#0d1f0a');
+  ctx.fillStyle=groundGrad;
+  ctx.fillRect(0,groundY,W,H-groundY);
+
+  // Runway
+  const rwY=groundY+5;
+  const rwH=18;
+  ctx.fillStyle='#333';
+  ctx.fillRect(W*0.1,rwY,W*0.8,rwH);
+  // Center line
+  ctx.strokeStyle='#fff';
+  ctx.lineWidth=2;
+  ctx.setLineDash([12,8]);
+  ctx.beginPath();
+  ctx.moveTo(W*0.12,rwY+rwH/2);
+  ctx.lineTo(W*0.88,rwY+rwH/2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Thresholds
+  ctx.fillStyle='#fff';
+  ctx.fillRect(W*0.1,rwY,4,rwH);
+  ctx.fillRect(W*0.88,rwY,4,rwH);
+
+  // Mountains
+  ctx.fillStyle='#1a2a3a';
+  for(let i=0;i<5;i++){
+    const mx=(i*W/3-G.x*0.01)%(W+200)-100;
+    const mh=40+i*20;
+    ctx.beginPath();
+    ctx.moveTo(mx,groundY);
+    ctx.lineTo(mx+mh,groundY-mh);
+    ctx.lineTo(mx+mh*2,groundY);
+    ctx.fill();
+  }
+
+  // Trees
+  ctx.fillStyle='#1a4a1a';
+  for(let i=0;i<12;i++){
+    const tx=(i*W/8-G.x*0.02)%(W+40)-20;
+    ctx.beginPath();
+    ctx.moveTo(tx,groundY+2);
+    ctx.lineTo(tx+6,groundY-12-i*2);
+    ctx.lineTo(tx+12,groundY+2);
+    ctx.fill();
+  }
+
+  // Aircraft position on screen
+  const acX=W*0.5+G.joyYaw*60;
+  const altFactor=G.alt/5000;
+  const acY=clamp(groundY-30-altFactor*(groundY-50),30,groundY-20);
+  const scale=0.8+altFactor*0.4;
+
+  ctx.save();
+  ctx.translate(acX,acY);
+  ctx.rotate(G.roll);
+  ctx.scale(scale,scale);
+
+  // Wings
+  const wingSpan=40+({short:0,medium:5,long:15,wide:10}[G.wing]||5);
+  ctx.fillStyle=G.icingLevel>0.3?'#8BA8C0':'#C8D8E8';
+  ctx.beginPath();
+  ctx.moveTo(-wingSpan,-3);
+  ctx.lineTo(wingSpan,-3);
+  ctx.lineTo(wingSpan*0.8,3);
+  ctx.lineTo(-wingSpan*0.8,3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#556';
+  ctx.lineWidth=1;
+  ctx.stroke();
+
+  // Fuselage
+  ctx.fillStyle='#E8E8F0';
+  ctx.beginPath();
+  ctx.ellipse(0,0,25,5,0,0,Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle='#556';
+  ctx.stroke();
+
+  // Tail
+  const tailW=G.tail==='v-tail'?12:G.tail==='canard'?8:G.tail==='none'?0:12;
+  if(tailW>0){
+    ctx.fillStyle='#B8C8D8';
+    if(G.tail==='t-tail'){
+      ctx.fillRect(20,-8,tailW,3);
+      ctx.fillRect(22,-12,3,6);
+    }else{
+      ctx.fillRect(20,-tailW/2,tailW,3);
+      ctx.fillRect(20,0,3,tailW);
+    }
+  }
+  // Canard
+  if(G.tail==='canard'){
+    ctx.fillStyle='#B8C8D8';
+    ctx.beginPath();
+    ctx.moveTo(-15,-2);ctx.lineTo(-25,-6);ctx.lineTo(-25,6);ctx.lineTo(-15,2);
+    ctx.closePath();ctx.fill();
+  }
+
+  // Engine glow
+  if(G.engineRunning&&G.throttle>0.1){
+    const glowR=3+G.throttle*6;
+    const glow=ctx.createRadialGradient(25,0,0,25,0,glowR);
+    glow.addColorStop(0,`rgba(255,${150+G.throttle*105},0,0.8)`);
+    glow.addColorStop(1,'rgba(255,100,0,0)');
+    ctx.fillStyle=glow;
+    ctx.fillRect(22,-glowR,glowR*2,glowR*2);
+  }
+
+  ctx.restore();
+
+  // HUD labels
+  ctx.fillStyle='rgba(0,0,0,0.5)';
+  ctx.fillRect(W-120,groundY+25,115,20);
+  ctx.fillStyle='#fff';
+  ctx.font='11px system-ui';
+  ctx.fillText(G.paused?'⏸ PAUSED':'',W-115,groundY+39);
+
+  // Status indicators
+  if(G.gearDown&&G.alt<10){
+    ctx.fillStyle='#22C55E';
+    ctx.font='10px system-ui';
+    ctx.fillText('GEAR DOWN',10,groundY+35);
+  }
+  if(G.flapDeg>0){
+    ctx.fillStyle='#3B82F6';
+    ctx.fillText(`FLAPS ${G.flapDeg}°`,10,groundY+48);
+  }
+  if(G.brakeOn&&G.alt<2){
+    ctx.fillStyle='#EF4444';
+    ctx.fillText('BRAKE',10,groundY+61);
+  }
+}
+
+function drawCloud(x,y,size){
+  ctx.beginPath();
+  ctx.arc(x,y,size*0.5,0,Math.PI*2);
+  ctx.arc(x+size*0.4,y-size*0.15,size*0.4,0,Math.PI*2);
+  ctx.arc(x+size*0.8,y,size*0.45,0,Math.PI*2);
+  ctx.arc(x+size*0.3,y+size*0.1,size*0.35,0,Math.PI*2);
+  ctx.fill();
+}
+
+// ---- GAME LOOP ----
+let lastTime=0;
+function gameLoop(ts){
+  const dt=Math.min((ts-lastTime)/1000,0.05);
+  lastTime=ts;
+
+  handleKeyboard();
+
+  if(G.flying&&!G.paused){
+    stepFlight(dt);
+    drawScene();
+    renderDesignHUD();
+  }else if(G.flying&&G.paused){
+    drawScene();
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// ---- INIT ----
+window.addEventListener('resize',()=>{if(G.flying)resizeCanvas()});
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
