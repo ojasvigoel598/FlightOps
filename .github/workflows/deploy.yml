@@ -47,8 +47,11 @@ jobs:
       - name: Export Expo web
         run: npx expo export --platform web
 
-      - name: Copy standalone play pages into dist
+      - name: Build landing page and copy play pages
         run: |
+          # Replace the broken Expo root with a working landing page
+          # that has QR codes, play button, and feature highlights
+          cp PLAY.html dist/index.html
           cp PLAY.html dist/PLAY.html 2>/dev/null || true
           cp RUN_ANYWHERE.html dist/RUN_ANYWHERE.html 2>/dev/null || true
 
