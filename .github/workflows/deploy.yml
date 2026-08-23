@@ -1,16 +1,4 @@
-# Deploy Flight Ops web game to GitHub Pages.
-# Runs on every push to main. Produces a permanent URL at:
-#   https://ojasvigoel598.github.io/FlightOps/
-#
-# NO API keys needed. NO paid services. Works forever.
-#
-# SETUP (one-time):
-#   1. Go to https://github.com/ojasvigoel598/FlightOps/settings/pages
-#   2. Under "Source", select "Deploy from a branch"
-#   3. Under "Branch", select "gh-pages" / "/ (root)"
-#   4. Click Save
-
-name: Deploy to GitHub Pages
+name: Deploy FlightOps to GitHub Pages
 
 on:
   push:
@@ -18,14 +6,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  build-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,22 +34,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Export Expo web
-        run: npx expo export --platform web
-
-      - name: Build landing page and copy play pages
+      - name: Build standalone game site
         run: |
-          # Replace the broken Expo root with the standalone flight game
-          # Pure HTML/CSS/JS — no React, no Expo, no native modules
-          rm -f dist/index.html
-          cp FLIGHT_GAME.html dist/index.html
-          cp FLIGHT_GAME.html dist/FLIGHT_GAME.html 2>/dev/null || true
-          cp PLAY.html dist/PLAY.html 2>/dev/null || true
-          cp RUN_ANYWHERE.html dist/RUN_ANYWHERE.html 2>/dev/null || true
+          mkdir -p _site
+          cp FLIGHT_GAME.html _site/index.html
+          cp FLIGHT_GAME.html _site/FLIGHT_GAME.html
+          cp PLAY.html _site/PLAY.html 2>/dev/null || true
+          cp RUN_ANYWHERE.html _site/RUN_ANYWHERE.html 2>/dev/null || true
 
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          keep_files: false
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
