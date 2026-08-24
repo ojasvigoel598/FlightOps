@@ -329,3 +329,63 @@ export function compareAgainstHistorical(
 }
 
 // ---------------------------------------------------------------------------
+// Feature 9 — Mission Profile Builder (Breguet Range)
+// ---------------------------------------------------------------------------
+
+export interface MissionSegment {
+  name: string;
+  /** Segment type */
+  type: 'taxi' | 'takeoff' | 'climb' | 'cruise' | 'descent' | 'approach' | 'landing' | 'loiter';
+  /** Duration (s) or distance (m) depending on type */
+  durationOrDistance: number;
+  /** Throttle setting (0-1) */
+  throttle: number;
+  /** Altitude at start of segment (m) */
+  altitudeStartM: number;
+  /** Altitude at end of segment (m) */
+  altitudeEndM: number;
+  /** Fuel flow rate (kg/s) — computed */
+  fuelFlowKgs: number;
+  /** Fuel burned in segment (kg) */
+  fuelBurnKg: number;
+}
+
+export interface MissionProfile {
+  name: string;
+  segments: MissionSegment[];
+  totalFuelKg: number;
+  totalDistanceKm: number;
+  totalDurationMin: number;
+  /** Breguet range estimate (km) */
+  breguetRangeKm: number;
+}
+
+/**
+ * Breguet range equation for propeller-driven aircraft:
+ *   R = (V/SFC) × (L/D) × ln(W_initial/W_final)
+ *
+ * For jet aircraft:
+ *   R = (V×a/c_t) × (L/D) × ln(W_initial/W_final)
+ *
+ * Reference: Anderson "Introduction to Flight" Ch. 6.
+ */
+export function breguetRange(
+  velocityMs: number,
+  lOverD: number,
+  sfc: number,
+  initialWeightN: number,
+  finalWeightN: number,
+  engineType: 'jet' | 'prop' = 'prop',
+): number {
+  if (finalWeightN <= 0 || initialWeightN <= finalWeightN) return 0;
+
+  if (engineType === 'prop') {
+    // R = (V/SFC) × (L/D) × ln(W_i/W_f)  — SFC in 1/s
+    return (velocityMs / sfc) * lOverD * Math.log(initialWeightN / finalWeightN);
+  } else {
+    // R = (V/c_t) × (L/D) × ln(W_i/W_f)  — c_t in 1/s (thrust SFC)
+    return (velocityMs / sfc) * lOverD * Math.log(initialWeightN / finalWeightN);
+  }
+}
+
+// ---------------------------------------------------------------------------
