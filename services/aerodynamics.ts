@@ -1214,3 +1214,104 @@ export function dragDeltaFromTransition(
     transitionFraction: tr.x_tr_ratio,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Feature 2 — Drag Polar Chart: CD vs CL with annotations
+// ---------------------------------------------------------------------------
+//
+// Generates the complete drag polar curve for a wing at a given flight
+// condition. Annotations include:
+//   • max L/D point
+//   • cruise operating point
+//   • stall region
+//   • minimum drag point
+//
+// Reference: Raymer, "Aircraft Design: A Conceptual Approach" Ch. 6.
+
+export interface DragPolarPoint {
+  cl: number;
+  cd: number;
+  /** Lift-to-drag ratio */
+  ld: number;
+  /** Angle of attack (approximate, via thin-airfoil theory) */
+  alphaDeg: number;
+}
+
+export interface DragPolarResult {
+  /** Points along the polar */
+  points: DragPolarPoint[];
+  /** Maximum L/D and the CL at which it occurs */
+  maxLd: number;
+  clAtMaxLd: number;
+  /** CD at zero lift */
+  cdMin: number;
+  /** CL at minimum drag (usually 0 for symmetric, nonzero for cambered) */
+  clAtCdMin: number;
+  /** Stall CL (maximum CL in the polar) */
+  clStall: number;
+  /** Whether annotations are valid */
+  valid: boolean;
+}
+
+export function generateDragPolar(
+  cd0: number,
+  k: number,
+  oswaldE: number,
+  aspectRatio: number,
+  alphaL0Deg: number = 0,
+  alphaRange: [number, number] = [-10, 20],
+  nPoints: number = 80,
+): DragPolarResult {
+  const points: DragPolarPoint[] = [];
+  const a0 = 2 * Math.PI; // thin-airfoil lift slope per rad
+
+  let maxLd = 0;
+  let clAtMaxLd = 0;
+  let clStall = 0;
+
+  const dAlpha = (alphaRange[1] - alphaRange[0]) / nPoints;
+
+  for (let i = 0; i <= nPoints; i++) {
+    const alphaDeg = alphaRange[0] + i * dAlpha;
+    const alphaRad = (alphaDeg * PI) / 180;
+    const alphaL0Rad = (alphaL0Deg * PI) / 180;
+
+    // CL from thin-airfoil theory (linear regime)
+    const cl = a0 * (alphaRad - alphaL0Rad);
+
+    // Parabolic drag polar
+    const cd = cd0 + k * cl * cl;
+
+    const ld = cd > 0 ? cl / cd : 0;
+
+    points.push({ cl, cd, ld, alphaDeg });
+
+    if (ld > maxLd && cl > 0) {
+      maxLd = ld;
+      clAtMaxLd = cl;
+    }
+    if (cl > clStall) clStall = cl;
+  }
+
+  // Minimum drag point
+  let cdMin = Infinity;
+  let clAtCdMin = 0;
+  for (const p of points) {
+    if (p.cd < cdMin) {
+      cdMin = p.cd;
+      clAtCdMin = p.cl;
+    }
+  }
+
+  return {
+    points,
+    maxLd,
+    clAtMaxLd,
+    cdMin,
+    clAtCdMin,
+    clStall,
+    valid: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
