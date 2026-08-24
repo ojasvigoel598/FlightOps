@@ -543,12 +543,12 @@ function stepFlight(dt){
   const a_normal=F_normal/G.massKg;
 
   // Flight-path angle rate: γ_dot = a_normal / V  (if V > 0)
+  // This is the EXACT kinematic relationship — no artificial damping needed.
+  // γ changes because the aircraft has a normal acceleration (Lift ≠ Weight*cos(γ)).
   let gamma_dot=0;
   if(G.airspeedMs>1){
     gamma_dot=a_normal/G.airspeedMs;
   }
-  // Damping on gamma (atmospheric resistance to rapid path changes)
-  gamma_dot*=0.95;
 
   // Speed rate: V_dot = a_forward
   let V_dot=a_forward;
@@ -581,19 +581,17 @@ function stepFlight(dt){
 
   // Moment of inertia (simplified: I_y ≈ m * (cbar/2)² / 3)
   const Iy=G.massKg*cbar*cbar/12;
-  // Pitch angular acceleration: q_dot = M / I_y
+  // Pitch angular acceleration: q_dot = M / I_y  (Euler's rotational equation)
+  // The Cm_q coefficient already provides physical pitch damping (aerodynamic moment).
   const q_dot=pitchMoment/Iy;
   G.q+=q_dot*dt;
-  // Additional pitch damping (natural stability)
-  G.q-=G.q*2.0*dt;
 
-  // Roll moment: L_roll from ailerons (yaw input creates roll) + roll damping
+  // Roll moment: L_roll from ailerons + roll damping (aerodynamic)
   const rollAuthority=0.4;
-  const rollMoment=q*S*w.spanM*(G.cmdRoll*rollAuthority-p*1.5);
+  const rollMoment=q*S*w.spanM*(G.cmdRoll*rollAuthority-G.p*1.5);
   const Ix=G.massKg*w.spanM*w.spanM/20; // roll inertia
   const p_dot=rollMoment/Ix;
   G.p+=p_dot*dt;
-  G.p-=G.p*3.0*dt; // roll damping
 
   // --- 11. UPDATE ATTITUDE ---
   G.theta+=G.q*dt;
@@ -601,9 +599,9 @@ function stepFlight(dt){
 
   G.phi+=G.p*dt;
   // Roll: when banked, the horizontal component of lift turns the aircraft
-  // Auto-roll-to-level (stability): if no input, return to wings level
+  // Roll stability: if no input, aerodynamic dihedral effect returns to wings level
   if(Math.abs(G.cmdRoll)<0.01){
-    G.phi-=G.phi*1.5*dt; // roll stability
+    G.phi-=G.phi*1.0*dt; // roll stability (dihedral effect)
   }
   G.phi=clamp(G.phi,-1.2,1.2);
 
