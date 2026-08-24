@@ -106,3 +106,29 @@ export function componentBuildupDrag(
 }
 
 // ---------------------------------------------------------------------------
+// Feature 7 — BEM Prandtl Tip Loss (Corrected at All Stations)
+// ---------------------------------------------------------------------------
+
+/**
+ * Prandtl tip-loss factor F at radial station r/R for B-bladed propeller.
+ * F = (2/π) × arccos(exp(-f))
+ * where f = (B/2) × (R-r) / (r × sin(φ))
+ *
+ * Applied at EVERY station, not just the tip.
+ * Reference: McCormick Ch. 3, Anderson Intro to Flight §6.4.
+ */
+export function prandtlTipLossFactor(
+  nBlades: number,
+  rOverR: number,
+  phiRad: number,
+): number {
+  if (rOverR >= 0.99) return 0;  // exactly at tip → zero loading
+  if (rOverR <= 0.01 || Math.abs(phiRad) < 0.001) return 1;  // hub → no loss
+
+  const rRatio = rOverR;
+  const f = (nBlades / 2) * (1 - rRatio) / (rRatio * Math.max(Math.sin(phiRad), 0.01));
+  if (f > 20) return 0;
+  return (2 / PI) * Math.acos(Math.exp(-f));
+}
+
+// ---------------------------------------------------------------------------
