@@ -677,3 +677,95 @@ export function obliqueShockRelations(m1: number, deflectionDeg: number): ShockR
 }
 
 // ---------------------------------------------------------------------------
+// Feature 12 — Prandtl-Meyer Expansion Fan
+// ---------------------------------------------------------------------------
+
+export interface ExpansionFanResult {
+  /** Upstream Mach number */
+  m1: number;
+  /** Downstream Mach number */
+  m2: number;
+  /** Prandtl-Meyer function ν(M) upstream */
+  nu1: number;
+  /** Prandtl-Meyer function ν(M) downstream */
+  nu2: number;
+  /** Total turning angle (degrees) */
+  turningDeg: number;
+  /** Pressure ratio: p2/p1 */
+  pressureRatio: number;
+  /** Temperature ratio: T2/T1 */
+  temperatureRatio: number;
+  /** Density ratio: ρ2/ρ1 */
+  densityRatio: number;
+  /** Whether the result is physically valid */
+  valid: boolean;
+}
+
+/**
+ * Prandtl-Meyer expansion fan function ν(M):
+ *   ν(M) = √(γ+1)/√(γ−1) × arctan(√((γ−1)/(γ+1)×(M²−1))) − arctan(√(M²−1))
+ *
+ * Reference: Anderson "Modern Compressible Flow" Ch. 9.
+ */
+export function prandtlMeyerNu(mach: number): number {
+  if (mach < 1.0) return 0;
+  const g = 1.4;
+  const gp1 = g + 1;
+  const gm1 = g - 1;
+  const m2m1 = mach * mach - 1;
+  return Math.sqrt(gp1 / gm1) * Math.atan(Math.sqrt(gm1 / gp1 * m2m1)) -
+    Math.atan(Math.sqrt(m2m1));
+}
+
+/**
+ * Given upstream M1 and turning angle Δν (degrees), compute downstream M2
+ * using the Prandtl-Meyer expansion fan relations.
+ */
+export function prandtlMeyerExpansion(
+  m1: number,
+  turningDeg: number,
+): ExpansionFanResult {
+  if (m1 < 1.0 || turningDeg <= 0) {
+    return {
+      m1, m2: m1, nu1: 0, nu2: 0,
+      turningDeg, pressureRatio: 1, temperatureRatio: 1, densityRatio: 1,
+      valid: false,
+    };
+  }
+
+  const nu1 = prandtlMeyerNu(m1);
+  const nu2 = nu1 + (turningDeg * PI) / 180;
+
+  // Invert ν(M) = nu2 to find M2 using bisection
+  let mLow = 1.0;
+  let mHigh = 10.0;
+  for (let i = 0; i < 60; i++) {
+    const mMid = (mLow + mHigh) / 2;
+    if (prandtlMeyerNu(mMid) < nu2) {
+      mLow = mMid;
+    } else {
+      mHigh = mMid;
+    }
+  }
+  const m2 = (mLow + mHigh) / 2;
+
+  // Isentropic relations: p2/p1 = (T2/T1)^(γ/(γ-1))
+  const g = 1.4;
+  const tRatio = (1 + (g - 1) / 2 * m1 * m1) / (1 + (g - 1) / 2 * m2 * m2);
+  const pRatio = Math.pow(tRatio, g / (g - 1));
+  const rhoRatio = Math.pow(tRatio, 1 / (g - 1));
+
+  return {
+    m1,
+    m2,
+    nu1: (nu1 * 180) / PI,
+    nu2: (nu2 * 180) / PI,
+    turningDeg,
+    pressureRatio: pRatio,
+    temperatureRatio: tRatio,
+    densityRatio: rhoRatio,
+    valid: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
