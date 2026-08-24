@@ -132,3 +132,200 @@ export function prandtlTipLossFactor(
 }
 
 // ---------------------------------------------------------------------------
+// Feature 8 — Historical Aircraft Comparison Database
+// ---------------------------------------------------------------------------
+
+export interface HistoricalAircraft {
+  name: string;
+  manufacturer: string;
+  year: number;
+  type: string;  // 'GA' | 'Airliner' | 'Fighter' | 'Glider' | 'UAV'
+  wingAreaM2: number;
+  wingSpanM: number;
+  massKg: number;
+  maxThrustN: number;
+  maxSpeedMs: number;
+  rangeKm: number;
+  clMax: number;
+  aspectRatio: number;
+  /** Max L/D */
+  maxLd: number;
+  /** Stall speed m/s */
+  stallSpeedMs: number;
+}
+
+export const HISTORICAL_AIRCRAFT: HistoricalAircraft[] = [
+  {
+    name: 'Cessna 172 Skyhawk',
+    manufacturer: 'Cessna',
+    year: 1956,
+    type: 'GA',
+    wingAreaM2: 16.17,
+    wingSpanM: 11.0,
+    massKg: 1043,
+    maxThrustN: 5000,
+    maxSpeedMs: 72,
+    rangeKm: 1289,
+    clMax: 1.65,
+    aspectRatio: 7.48,
+    maxLd: 12,
+    stallSpeedMs: 25,
+  },
+  {
+    name: 'Piper PA-28 Cherokee',
+    manufacturer: 'Piper',
+    year: 1961,
+    type: 'GA',
+    wingAreaM2: 15.79,
+    wingSpanM: 10.8,
+    massKg: 919,
+    maxThrustN: 4500,
+    maxSpeedMs: 65,
+    rangeKm: 1100,
+    clMax: 1.60,
+    aspectRatio: 7.40,
+    maxLd: 11,
+    stallSpeedMs: 24,
+  },
+  {
+    name: 'Boeing 737-800',
+    manufacturer: 'Boeing',
+    year: 1997,
+    type: 'Airliner',
+    wingAreaM2: 124.6,
+    wingSpanM: 35.8,
+    massKg: 70000,
+    maxThrustN: 220000,
+    maxSpeedMs: 250,
+    rangeKm: 5400,
+    clMax: 2.2,
+    aspectRatio: 10.2,
+    maxLd: 17,
+    stallSpeedMs: 68,
+  },
+  {
+    name: 'Airbus A320',
+    manufacturer: 'Airbus',
+    year: 1988,
+    type: 'Airliner',
+    wingAreaM2: 122.6,
+    wingSpanM: 35.8,
+    massKg: 68000,
+    maxThrustN: 210000,
+    maxSpeedMs: 240,
+    rangeKm: 5700,
+    clMax: 2.1,
+    aspectRatio: 10.4,
+    maxLd: 17,
+    stallSpeedMs: 65,
+  },
+  {
+    name: 'F-16C Fighting Falcon',
+    manufacturer: 'General Dynamics / Lockheed Martin',
+    year: 1978,
+    type: 'Fighter',
+    wingAreaM2: 27.87,
+    wingSpanM: 9.96,
+    massKg: 8570,
+    maxThrustN: 130000,
+    maxSpeedMs: 650,
+    rangeKm: 3200,
+    clMax: 1.2,
+    aspectRatio: 3.56,
+    maxLd: 9,
+    stallSpeedMs: 60,
+  },
+  {
+    name: 'Schleicher ASK 21',
+    manufacturer: 'Schleicher',
+    year: 1979,
+    type: 'Glider',
+    wingAreaM2: 17.5,
+    wingSpanM: 17.0,
+    massKg: 514,
+    maxThrustN: 0,
+    maxSpeedMs: 70,
+    rangeKm: 800,
+    clMax: 1.55,
+    aspectRatio: 16.5,
+    maxLd: 34,
+    stallSpeedMs: 22,
+  },
+  {
+    name: 'Boeing 747-400',
+    manufacturer: 'Boeing',
+    year: 1989,
+    type: 'Airliner',
+    wingAreaM2: 541.2,
+    wingSpanM: 64.4,
+    massKg: 180000,
+    maxThrustN: 900000,
+    maxSpeedMs: 290,
+    rangeKm: 13450,
+    clMax: 2.0,
+    aspectRatio: 7.66,
+    maxLd: 17,
+    stallSpeedMs: 78,
+  },
+  {
+    name: 'P-51D Mustang',
+    manufacturer: 'North American Aviation',
+    year: 1944,
+    type: 'Fighter',
+    wingAreaM2: 23.3,
+    wingSpanM: 11.3,
+    massKg: 3600,
+    maxThrustN: 38000,
+    maxSpeedMs: 190,
+    rangeKm: 2650,
+    clMax: 1.4,
+    aspectRatio: 5.49,
+    maxLd: 14,
+    stallSpeedMs: 45,
+  },
+  {
+    name: 'General Atomics MQ-9 Reaper',
+    manufacturer: 'General Atomics',
+    year: 2001,
+    type: 'UAV',
+    wingAreaM2: 23.2,
+    wingSpanM: 20.0,
+    massKg: 4760,
+    maxThrustN: 11000,
+    maxSpeedMs: 80,
+    rangeKm: 1850,
+    clMax: 1.6,
+    aspectRatio: 17.2,
+    maxLd: 25,
+    stallSpeedMs: 28,
+  },
+];
+
+/**
+ * Compare a user-designed aircraft against historical data.
+ * Returns percentile rankings for key metrics.
+ */
+export function compareAgainstHistorical(
+  userLd: number,
+  userStallSpeed: number,
+  userWingLoading: number,
+): Array<{
+  name: string;
+  type: string;
+  ld: number;
+  stallSpeed: number;
+  wingLoading: number;
+  ldPercentile: number;
+}> {
+  const sorted = [...HISTORICAL_AIRCRAFT].sort((a, b) => a.maxLd - b.maxLd);
+  return HISTORICAL_AIRCRAFT.map(ac => ({
+    name: ac.name,
+    type: ac.type,
+    ld: ac.maxLd,
+    stallSpeed: ac.stallSpeedMs,
+    wingLoading: (ac.massKg * 9.80665) / ac.wingAreaM2,
+    ldPercentile: (sorted.filter(s => s.maxLd <= ac.maxLd).length / sorted.length) * 100,
+  }));
+}
+
+// ---------------------------------------------------------------------------
