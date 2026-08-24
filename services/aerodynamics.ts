@@ -1550,3 +1550,81 @@ export function generateFlightEnvelope(
 }
 
 // ---------------------------------------------------------------------------
+// Feature 14 — Trim Solver: Find elevator deflection for L=W, M=0
+// ---------------------------------------------------------------------------
+//
+// Given an aircraft configuration, find the elevator deflection δe that
+// achieves trim (net pitching moment = 0) at a specified flight condition.
+//
+// Longitudinal trim equation:
+//   Cm = Cm_0 + Cm_alpha · alpha + Cm_deltae · deltae = 0
+//
+// where:
+//   Cm_0      — zero-alpha pitching moment (camber + tail)
+//   Cm_alpha  — pitch stiffness (negative for stable aircraft)
+//   Cm_deltae — elevator control power (negative for nose-down)
+//   deltae    — elevator deflection (radians, positive trailing-edge down)
+//
+// Reference: Nelson, "Flight Stability and Automatic Control" Ch. 4,
+// Anderson "Flight Mechanics" Ch. 5.
+
+export interface TrimResult {
+  /** Required elevator deflection for trim, degrees */
+  elevatorDeg: number;
+  /** Trim angle of attack, degrees */
+  alphaTrimDeg: number;
+  /** CL at trim */
+  clTrim: number;
+  /** Whether trim is achievable within control limits */
+  achievable: boolean;
+  /** Margin to control limit */
+  marginDeg: number;
+  warnings: string[];
+}
+
+export function solveTrim(
+  weightN: number,
+  wingAreaM2: number,
+  qPa: number,
+  clAlpha: number,
+  alphaL0Deg: number,
+  cm0: number,
+  cmAlpha: number,
+  cmDeltae: number,
+  deltaeMaxDeg: number = 25,
+): TrimResult {
+  const warnings: string[] = [];
+
+  // Required CL for L = W
+  const clReq = qPa > 0 ? weightN / (qPa * wingAreaM2) : 0;
+
+  // Trim alpha: CL = clAlpha * (alpha - alphaL0) → alpha = CL/clAlpha + alphaL0
+  const alphaTrimRad = clReq / clAlpha;
+  const alphaL0Rad = (alphaL0Deg * PI) / 180;
+  const alphaTrimRadAbs = alphaTrimRad + alphaL0Rad;
+  const alphaTrimDeg = (alphaTrimRadAbs * 180) / PI;
+
+  // Trim equation: Cm_0 + Cm_alpha · alpha + Cm_deltae · deltae = 0
+  // deltae = -(Cm_0 + Cm_alpha · alpha) / Cm_deltae
+  const cmAlphaVal = cmAlpha * alphaTrimRadAbs;
+  const deltaeRad = cmDeltae !== 0 ? -(cm0 + cmAlphaVal) / cmDeltae : 0;
+  const elevatorDeg = (deltaeRad * 180) / PI;
+
+  const achievable = Math.abs(elevatorDeg) <= deltaeMaxDeg;
+  const marginDeg = deltaeMaxDeg - Math.abs(elevatorDeg);
+
+  if (!achievable) {
+    warnings.push(`Trim not achievable: required δe = ${elevatorDeg.toFixed(1)}° exceeds ±${deltaeMaxDeg}° limit.`);
+  }
+  if (Math.abs(alphaTrimDeg) > 15) {
+    warnings.push(`Trim α = ${alphaTrimDeg.toFixed(1)}° is outside the linear aerodynamic regime.`);
+  }
+
+  return {
+    elevatorDeg,
+    alphaTrimDeg,
+    clTrim: clReq,
+    achievable,
+    marginDeg,
+    warnings,
+  };
