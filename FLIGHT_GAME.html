@@ -432,18 +432,24 @@ function stepFlight(dt){
   // With stall model: CL drops above CL_alpha * (alpha_stall - alpha_L0)
   let clAlpha=a.clAlpha; // ≈ 2π * 0.95 ≈ 5.97 /rad
   let alphaL0=a.aoaL0;
+  // --- REALISTIC CL(α) CURVE ---
+  // Pre-stall: CL = CL_alpha * (α - α_L0)  [linear]
+  // Post-stall: CL drops gradually, NOT to zero instantly
+  // Real airfoil data: at α_stall+5°, CL ≈ 0.6*CLmax; at +10°, CL ≈ 0.3*CLmax
+  const aoaCritDeg=15; // critical AoA for stall onset
+  const aoaDegAbs=G.aoaDeg;
   let cl=clAlpha*(aoaRad-alphaL0);
   // Flap contribution
   const flapContrib=(G.flapDeg/30)*0.6;
   cl+=flapContrib;
-  // Stall: CL drops above critical AoA (~15°)
-  const aoaCritDeg=15;
-  const aoaDegAbs=G.aoaDeg;
+  // Stall: realistic CL drop above critical AoA
+  // Using a smooth curve: CL drops to ~60% of CLmax at stall+5°, ~30% at stall+10°
   if(Math.abs(aoaDegAbs)>aoaCritDeg){
     const excess=Math.abs(aoaDegAbs)-aoaCritDeg;
-    const stallPenalty=Math.max(0,1-excess*0.15);
-    cl*=stallPenalty;
-    if(stallPenalty<0.9)G.stallWarnings++;
+    // Quadratic drop: 1 - 0.04*excess² gives smoother stall than linear
+    const stallFactor=Math.max(0.05,1-excess*excess*0.008);
+    cl*=stallFactor;
+    if(stallFactor<0.9)G.stallWarnings++;
   }
   // Event effects on CL
   if(G.activeEvent){
