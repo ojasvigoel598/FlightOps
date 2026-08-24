@@ -1315,3 +1315,131 @@ export function generateDragPolar(
 }
 
 // ---------------------------------------------------------------------------
+// Feature 3 — Thrust Required vs Available
+// ---------------------------------------------------------------------------
+//
+// T_req(V) = W² / (q·S·π·e·AR·V) + q·S·CD0    (parasite + induced)
+// T_avail(V) = maxThrust × (ρ/ρ₀) × propEfficiency(V)
+//
+// The intersection of T_req and T_avail gives the max level speed.
+// The minimum of T_req gives the max endurance speed.
+//
+// Reference: Raymer Ch. 6, Anderson "Introduction to Flight" Ch. 6.
+
+export interface ThrustRequiredPoint {
+  velocityMs: number;
+  /** Thrust required for steady level flight (N) */
+  thrustReqN: number;
+  /** Thrust available at this speed (N) */
+  thrustAvailN: number;
+  /** Excess thrust (T_avail - T_req) */
+  excessN: number;
+  /** L/D at this speed */
+  ld: number;
+  /** Fuel flow rate (kg/s) */
+  fuelFlowKgs: number;
+}
+
+export interface ThrustRequiredResult {
+  points: ThrustRequiredPoint[];
+  /** Maximum level flight speed (intersection of T_req = T_avail) */
+  maxSpeedMs: number;
+  /** Speed for maximum endurance (minimum T_req) */
+  enduranceSpeedMs: number;
+  /** Speed for maximum range (maximum V/LD) */
+  rangeSpeedMs: number;
+  /** Maximum L/D */
+  maxLd: number;
+  valid: boolean;
+  warnings: string[];
+}
+
+export function thrustRequiredVsAvailable(
+  weightN: number,
+  wingAreaM2: number,
+  cd0: number,
+  oswaldE: number,
+  aspectRatio: number,
+  maxThrustN: number,
+  altitudeM: number,
+  sfc: number,
+  vMin: number = 20,
+  vMax: number = 200,
+  nPoints: number = 80,
+): ThrustRequiredResult {
+  const atm = standardAtmosphere(altitudeM);
+  const rho = atm.densityKgM3;
+  const k = 1 / (PI * oswaldE * aspectRatio);
+  const warnings: string[] = [];
+
+  const points: ThrustRequiredPoint[] = [];
+  const dV = (vMax - vMin) / nPoints;
+
+  let minThrustReq = Infinity;
+  let enduranceSpeed = vMin;
+  let maxLdSpeed = vMin;
+  let maxLd = 0;
+  let maxSpeedMs = vMin;
+
+  for (let i = 0; i <= nPoints; i++) {
+    const V = vMin + i * dV;
+    if (V <= 0) continue;
+
+    const q = 0.5 * rho * V * V;
+
+    // Thrust required for steady level flight: L = W
+    // T_req = D = q·S·CD = q·S·(CD0 + k·CL²)
+    // CL = W/(q·S)
+    const cl = weightN / (q * wingAreaM2);
+    const cd = cd0 + k * cl * cl;
+    const thrustReqN = q * wingAreaM2 * cd;
+
+    // Thrust available: scales with density (jet) or density+efficiency (prop)
+    const thrustAvailN = maxThrustN * (rho / 1.225);
+
+    const excessN = thrustAvailN - thrustReqN;
+    const ld = cl / cd;
+    const fuelFlowKgs = sfc * thrustReqN;
+
+    points.push({ velocityMs: V, thrustReqN, thrustAvailN, excessN, ld, fuelFlowKgs });
+
+    if (thrustReqN < minThrustReq) {
+      minThrustReq = thrustReqN;
+      enduranceSpeed = V;
+    }
+    if (ld > maxLd) {
+      maxLd = ld;
+      maxLdSpeed = V;
+    }
+    if (excessN >= 0) {
+      maxSpeedMs = V;
+    }
+  }
+
+  // Range speed: max V·η/(SFC·W) for prop, or max V/(SFC) for jet
+  let maxRangeSpeed = vMin;
+  let maxRangeMetric = 0;
+  for (const p of points) {
+    const rangeMetric = p.ld * p.velocityMs;
+    if (rangeMetric > maxRangeMetric) {
+      maxRangeMetric = rangeMetric;
+      maxRangeSpeed = p.velocityMs;
+    }
+  }
+
+  if (maxSpeedMs <= vMin + dV) {
+    warnings.push('No equilibrium max speed found — thrust may be insufficient for level flight.');
+  }
+
+  return {
+    points,
+    maxSpeedMs,
+    enduranceSpeedMs: enduranceSpeed,
+    rangeSpeedMs: maxRangeSpeed,
+    maxLd,
+    valid: warnings.length === 0,
+    warnings,
+  };
+}
+
+// ---------------------------------------------------------------------------
