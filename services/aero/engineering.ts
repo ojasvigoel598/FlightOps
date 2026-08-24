@@ -524,3 +524,156 @@ export function raymerWeightBuildup(inputs: {
 }
 
 // ---------------------------------------------------------------------------
+// Feature 11 — Normal/Oblique Shock Calculator
+// ---------------------------------------------------------------------------
+
+export interface ShockResult {
+  /** Upstream Mach number */
+  m1: number;
+  /** Downstream Mach number */
+  m2: number;
+  /** Static pressure ratio: p2/p1 */
+  pressureRatio: number;
+  /** Temperature ratio: T2/T1 */
+  temperatureRatio: number;
+  /** Density ratio: ρ2/ρ1 */
+  densityRatio: number;
+  /** Total pressure ratio: p02/p01 */
+  totalPressureRatio: number;
+  /** Deflection angle (degrees) — for oblique shock */
+  deflectionDeg: number;
+  /** Wave angle (degrees) — for oblique shock */
+  waveAngleDeg: number;
+  /** Shock type */
+  type: 'normal' | 'oblique' | 'attached' | 'detached';
+  /** Whether a solution exists */
+  valid: boolean;
+}
+
+/**
+ * Normal shock relations (Anderson "Modern Compressible Flow" Ch. 8).
+ *
+ * Given upstream Mach M1, compute all downstream properties.
+ * γ = 1.4 for air.
+ */
+export function normalShockRelations(m1: number): ShockResult {
+  if (m1 < 1.0) {
+    return {
+      m1, m2: m1, pressureRatio: 1, temperatureRatio: 1,
+      densityRatio: 1, totalPressureRatio: 1,
+      deflectionDeg: 0, waveAngleDeg: 90,
+      type: 'normal', valid: false,
+    };
+  }
+
+  const g = 1.4;
+  const g1 = g + 1;
+  const gm1 = g - 1;
+
+  const m2sq = (m1 * m1 * gm1 + 2) / (2 * g * m1 * m1 - gm1);
+  const m2 = Math.sqrt(m2sq);
+
+  const pr = 1 + (2 * g / g1) * (m1 * m1 - 1);
+  const tr = pr * (2 + gm1 * m1 * m1) / (g1 * m1 * m1);
+  const dr = g1 * m1 * m1 / (2 + gm1 * m1 * m1);
+
+  // Total pressure ratio (Rayleigh pitot formula)
+  const p0ratio = Math.pow(
+    ((g1 * m1 * m1) / (2 + gm1 * m1 * m1)) * (g1 / (2 * g * m1 * m1 - gm1)),
+    g / gm1,
+  );
+
+  return {
+    m1,
+    m2,
+    pressureRatio: pr,
+    temperatureRatio: tr,
+    densityRatio: dr,
+    totalPressureRatio: p0ratio,
+    deflectionDeg: 0,
+    waveAngleDeg: 90,
+    type: 'normal',
+    valid: true,
+  };
+}
+
+/**
+ * Oblique shock: θ-β-M relation (Anderson "Modern Compressible Flow" Ch. 9).
+ *
+ * tan(θ) = 2·cot(β) × (M1²·sin²(β) − 1) / (M1²·(γ + cos(2β)) + 2)
+ *
+ * Given M1 and deflection θ, iterate to find wave angle β.
+ */
+export function obliqueShockRelations(m1: number, deflectionDeg: number): ShockResult {
+  const g = 1.4;
+  const theta = (deflectionDeg * PI) / 180;
+
+  if (m1 < 1.0 || deflectionDeg <= 0) {
+    return {
+      m1, m2: m1, pressureRatio: 1, temperatureRatio: 1,
+      densityRatio: 1, totalPressureRatio: 1,
+      deflectionDeg, waveAngleDeg: 0,
+      type: 'detached', valid: false,
+    };
+  }
+
+  // Newton-Raphson to solve θ-β-M for β
+  let beta = (deflectionDeg + 5) * PI / 180;  // initial guess
+  for (let iter = 0; iter < 50; iter++) {
+    const sinB = Math.sin(beta);
+    const cosB = Math.cos(beta);
+    const m1sqSin2 = m1 * m1 * sinB * sinB;
+
+    const tanTheta = (2 / Math.tan(beta)) * (m1sqSin2 - 1) /
+      (m1 * m1 * (g + Math.cos(2 * beta)) + 2);
+
+    const residual = Math.atan(tanTheta) - theta;
+    if (Math.abs(residual) < 1e-10) break;
+
+    // d(tanθ)/dβ — numerical derivative
+    const dBeta = 1e-8;
+    const beta2 = beta + dBeta;
+    const sinB2 = Math.sin(beta2);
+    const m1sqSin2_2 = m1 * m1 * sinB2 * sinB2;
+    const tanTheta2 = (2 / Math.tan(beta2)) * (m1sqSin2_2 - 1) /
+      (m1 * m1 * (g + Math.cos(2 * beta2)) + 2);
+    const dTanTheta = (Math.atan(tanTheta2) - Math.atan(tanTheta)) / dBeta;
+
+    if (Math.abs(dTanTheta) < 1e-15) break;
+    beta -= residual / dTanTheta;
+  }
+
+  // Check if solution exists
+  const betaDeg = (beta * 180) / PI;
+  if (betaDeg <= deflectionDeg || beta <= 0 || beta >= PI / 2) {
+    return {
+      m1, m2: m1, pressureRatio: 1, temperatureRatio: 1,
+      densityRatio: 1, totalPressureRatio: 1,
+      deflectionDeg, waveAngleDeg: 0,
+      type: 'detached', valid: false,
+    };
+  }
+
+  // Compute post-shock Mach from normal component
+  const m1n = m1 * Math.sin(beta);
+  const normalResult = normalShockRelations(m1n);
+
+  // Post-shock Mach (component normal to shock is reduced, tangential unchanged)
+  const m2n = normalResult.m2;
+  const m2 = m2n / Math.sin(beta - theta);
+
+  return {
+    m1,
+    m2,
+    pressureRatio: normalResult.pressureRatio,
+    temperatureRatio: normalResult.temperatureRatio,
+    densityRatio: normalResult.densityRatio,
+    totalPressureRatio: normalResult.totalPressureRatio,
+    deflectionDeg,
+    waveAngleDeg: betaDeg,
+    type: 'oblique',
+    valid: true,
+  };
+}
+
+// ---------------------------------------------------------------------------
