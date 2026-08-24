@@ -769,3 +769,97 @@ export function prandtlMeyerExpansion(
 }
 
 // ---------------------------------------------------------------------------
+// Feature 15 — Design Space Explorer (Parameter Sensitivity)
+// ---------------------------------------------------------------------------
+
+export interface DesignSensitivity {
+  /** Parameter name */
+  parameter: string;
+  /** Range of values tested */
+  values: number[];
+  /** Output metric for each value */
+  output: Array<{
+    metric: string;
+    values: number[];
+  }>;
+  /** Optimal value for each output metric */
+  optimal: Array<{
+    metric: string;
+    value: number;
+    parameterValue: number;
+  }>;
+}
+
+/**
+ * Sweep one design parameter and record its effect on performance metrics.
+ * Used for interactive "what-if" analysis.
+ */
+export function designSpaceSweep(
+  baseConfig: {
+    wingAreaM2: number;
+    wingSpanM: number;
+    massKg: number;
+    cd0: number;
+    oswaldE: number;
+    maxThrustN: number;
+  },
+  paramName: string,
+  range: [number, number],
+  nPoints: number = 20,
+): DesignSensitivity {
+  const values: number[] = [];
+  const ldValues: number[] = [];
+  const stallSpeedValues: number[] = [];
+  const cruiseSpeedValues: number[] = [];
+
+  const dParam = (range[1] - range[0]) / nPoints;
+
+  for (let i = 0; i <= nPoints; i++) {
+    const paramVal = range[0] + i * dParam;
+    values.push(paramVal);
+
+    // Apply parameter to config
+    const cfg = { ...baseConfig };
+    if (paramName === 'wingAreaM2') cfg.wingAreaM2 = paramVal;
+    else if (paramName === 'wingSpanM') cfg.wingSpanM = paramVal;
+    else if (paramName === 'massKg') cfg.massKg = paramVal;
+    else if (paramName === 'cd0') cfg.cd0 = paramVal;
+    else if (paramName === 'oswaldE') cfg.oswaldE = paramVal;
+    else if (paramName === 'maxThrustN') cfg.maxThrustN = paramVal;
+
+    // Compute metrics
+    const ar = (cfg.wingSpanM * cfg.wingSpanM) / cfg.wingAreaM2;
+    const k = 1 / (PI * cfg.oswaldE * ar);
+    const ldMax = 1 / (2 * Math.sqrt(cfg.cd0 * k));
+    const clMax = 1.65;
+    const rho0 = 1.225;
+    const stallSpeed = Math.sqrt((2 * cfg.massKg * 9.80665) / (rho0 * cfg.wingAreaM2 * clMax));
+
+    // Rough cruise speed estimate: T_req = T_avail at cruise
+    const cruiseSpeed = Math.pow(
+      (2 * cfg.maxThrustN) / (rho0 * cfg.wingAreaM2 * cfg.cd0),
+      0.5,
+    ) * 0.7;  // rough estimate
+
+    ldValues.push(ldMax);
+    stallSpeedValues.push(stallSpeed);
+    cruiseSpeedValues.push(cruiseSpeed);
+  }
+
+  // Find optimal for each metric
+  const optimalLd = Math.max(...ldValues);
+  const optimalIdx = ldValues.indexOf(optimalLd);
+
+  return {
+    parameter: paramName,
+    values,
+    output: [
+      { metric: 'Max L/D', values: ldValues },
+      { metric: 'Stall Speed (m/s)', values: stallSpeedValues },
+      { metric: 'Cruise Speed (m/s)', values: cruiseSpeedValues },
+    ],
+    optimal: [
+      { metric: 'Max L/D', value: optimalLd, parameterValue: values[optimalIdx] },
+    ],
+  };
+}
