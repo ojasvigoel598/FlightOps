@@ -389,3 +389,138 @@ export function breguetRange(
 }
 
 // ---------------------------------------------------------------------------
+// Feature 10 — Weight Buildup (Raymer Component Weights)
+// ---------------------------------------------------------------------------
+
+export interface WeightBuildup {
+  /** Wing weight (kg) */
+  wingKg: number;
+  /** Fuselage weight (kg) */
+  fuselageKg: number;
+  /** Horizontal tail weight (kg) */
+  htailKg: number;
+  /** Vertical tail weight (kg) */
+  vtailKg: number;
+  /** Landing gear weight (kg) */
+  landingGearKg: number;
+  /** Engine/propulsion weight (kg) */
+  propulsionKg: number;
+  /** Fixed equipment (avionics, electrical, etc.) */
+  fixedEquipmentKg: number;
+  /** Empty weight (kg) */
+  emptyWeightKg: number;
+  /** Maximum fuel weight (kg) */
+  maxFuelKg: number;
+  /** Payload (kg) */
+  payloadKg: number;
+  /** Maximum takeoff weight (kg) */
+  mtowKg: number;
+  /** Empty weight fraction */
+  emptyWeightFraction: number;
+  /** Weight breakdown for visualization */
+  breakdown: Array<{ name: string; weightKg: number; fraction: number }>;
+}
+
+/**
+ * Raymer statistical weight estimation (Ch. 8).
+ * These are simplified regression equations for preliminary design.
+ *
+ * Reference: Raymer, "Aircraft Design: A Conceptual Approach", Table 8.1
+ */
+export function raymerWeightBuildup(inputs: {
+  /** Wing area (m²) */
+  wingAreaM2: number;
+  /** Wing span (m) */
+  wingSpanM: number;
+  /** Design fuel weight (kg) */
+  fuelKg: number;
+  /** Payload weight (kg) */
+  payloadKg: number;
+  /** Number of engines */
+  nEngines: number;
+  /** Engine type */
+  engineType: 'piston' | 'turboprop' | 'turbojet' | 'turbofan' | 'electric';
+  /** Thrust per engine (N) — for jets */
+  thrustPerEngineN: number;
+  /** Power per engine (W) — for props */
+  powerPerEngineW: number;
+  /** Fuselage length (m) */
+  fuselageLengthM: number;
+  /** Fuselage diameter (m) */
+  fuselageDiameterM: number;
+  /** Pressurized? */
+  pressurized: boolean;
+}): WeightBuildup {
+  const { wingAreaM2, wingSpanM, fuelKg, payloadKg, nEngines, engineType,
+    thrustPerEngineN, powerPerEngineW, fuselageLengthM, fuselageDiameterM, pressurized } = inputs;
+
+  // Initial MTOW estimate (iterative, but one pass is sufficient for preliminary)
+  const MTOW_est = 1500 + fuelKg + payloadKg + nEngines * 200;
+
+  // Raymer wing weight (metal, conventional)
+  const wingWeight = 0.052 * Math.pow(MTOW_est, 0.884) *
+    Math.pow(fuselageLengthM, 0.413) * Math.pow(wingSpanM, 0.266) /
+    Math.pow(wingAreaM2, 0.395);
+
+  // Raymer fuselage weight
+  const fuselageLengthFt = fuselageLengthM * 3.281;
+  const fuselageWeight = 0.0228 * Math.pow(MTOW_est, 0.921) *
+    Math.pow(fuselageLengthFt, 0.473) *
+    Math.pow(pressurized ? 1 : 0.523, 0.703);
+
+  // Tail weights (simple area-based)
+  const htailWeight = wingAreaM2 * 0.04 * 15;  // ~15 kg/m² for tail
+  const vtailWeight = wingAreaM2 * 0.03 * 15;
+
+  // Landing gear
+  const gearWeight = 0.043 * Math.pow(MTOW_est, 0.768) *
+    Math.pow(fuselageLengthM, 0.408);
+
+  // Propulsion weight
+  let engineWeight: number;
+  if (engineType === 'turbofan' || engineType === 'turbojet') {
+    engineWeight = nEngines * (0.17 * thrustPerEngineN / 9.81 + 30);  // Raymer thrust-based
+  } else {
+    engineWeight = nEngines * (0.006 * powerPerEngineW / 1000 + 40);  // power-based
+  }
+  const propWeight = engineType === 'piston' || engineType === 'turboprop' || engineType === 'electric'
+    ? nEngines * 15 : 0;  // propeller weight
+  const propulsionWeight = engineWeight + propWeight;
+
+  // Fixed equipment: ~0.17 × empty weight (Raymer average)
+  const emptyWeight = wingWeight + fuselageWeight + htailWeight + vtailWeight +
+    gearWeight + propulsionWeight;
+  const fixedEquipmentWeight = emptyWeight * 0.17 / (1 - 0.17);  // back out from fraction
+
+  const totalEmpty = emptyWeight + fixedEquipmentWeight;
+  const mtow = totalEmpty + fuelKg + payloadKg;
+  const emptyFraction = totalEmpty / mtow;
+
+  return {
+    wingKg: Math.round(wingWeight),
+    fuselageKg: Math.round(fuselageWeight),
+    htailKg: Math.round(htailWeight),
+    vtailKg: Math.round(vtailWeight),
+    landingGearKg: Math.round(gearWeight),
+    propulsionKg: Math.round(propulsionWeight),
+    fixedEquipmentKg: Math.round(fixedEquipmentWeight),
+    emptyWeightKg: Math.round(totalEmpty),
+    maxFuelKg: fuelKg,
+    payloadKg,
+    mtowKg: Math.round(mtow),
+    emptyWeightFraction: emptyFraction,
+    breakdown: [
+      { name: 'Wing', weightKg: Math.round(wingWeight), fraction: wingWeight / mtow },
+      { name: 'Fuselage', weightKg: Math.round(fuselageWeight), fraction: fuselageWeight / mtow },
+      { name: 'H-Tail', weightKg: Math.round(htailWeight), fraction: htailWeight / mtow },
+      { name: 'V-Tail', weightKg: Math.round(vtailWeight), fraction: vtailWeight / mtow },
+      { name: 'Landing Gear', weightKg: Math.round(gearWeight), fraction: gearWeight / mtow },
+      { name: 'Propulsion', weightKg: Math.round(propulsionWeight), fraction: propulsionWeight / mtow },
+      { name: 'Fixed Equipment', weightKg: Math.round(fixedEquipmentWeight), fraction: fixedEquipmentWeight / mtow },
+      { name: 'Fuel', weightKg: fuelKg, fraction: fuelKg / mtow },
+      { name: 'Payload', weightKg: payloadKg, fraction: payloadKg / mtow },
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
