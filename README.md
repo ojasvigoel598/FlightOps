@@ -9,16 +9,16 @@
   <img src="https://img.shields.io/badge/React_Native-0.79-blue" alt="React Native">
   <img src="https://img.shields.io/badge/Expo-53-black" alt="Expo">
   <img src="https://img.shields.io/badge/TypeScript-5.8-3178C6" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Tests-127-passing-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/Aero_Models-14-ff9900" alt="Aero Models">
+  <img src="https://img.shields.io/badge/Tests-157-passing-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/Aero_Models-25+-ff9900" alt="Aero Models">
 </p>
 
 <p align="center">
+  <a href="#what-is-flight-ops">What is it?</a> ·
+  <a href="#the-big-picture-how-it-works">How it works</a> ·
   <a href="#quick-start">Quick Start</a> ·
-  <a href="#two-learning-modes">Learning Modes</a> ·
-  <a href="#design-tab-mission-designer">Design Tab</a> ·
-  <a href="#aero-lab-linear-aerodynamics">Aero Lab</a> ·
-  <a href="#qr-code--mobile">QR Code</a> ·
+  <a href="#the-physics-engine">Physics Engine</a> ·
+  <a href="#engineering-analysis-tools">Engineering Tools</a> ·
   <a href="#testing">Tests</a>
 </p>
 
@@ -26,231 +26,268 @@
 
 ## What is Flight Ops?
 
-Flight Ops is an **interactive aerospace learning game** built with React Native + Expo. It has no backend and no accounts — everything runs on your device.
+Flight Ops is an **interactive aerospace engineering simulator and game** that runs entirely in your browser or on your phone. No server, no account, no internet required after the first load.
 
-**Choose your path:**
+**The core idea:** You design an aircraft by choosing wings, engines, tail, and airfoil. The app calculates whether your design can complete a mission — using real aerospace equations. Then you fly it and see if your engineering decisions were good.
+
+**Two paths:**
 
 | | 🎮 Fun Mode | 📐 Engineering Mode |
 |---|---|---|
 | **For** | Beginners, curious players | Aerospace students, enthusiasts |
-| **Approach** | Visual choices, no equations | Sadraey-style design process |
-| **Tailored** | Simple explanations | Equations, method labels |
-| **Aircraft** | Pick shapes, see results | 7 real configurations |
+| **Approach** | Visual choices, simple explanations | Full equations, Sadraey design process |
+| **Math** | Hidden — you see results | Every equation shown and explained |
+| **Aircraft** | Pick shapes, see outcomes | 7 real configurations with full analysis |
 
-**Core loop:** Define a mission → Design an aircraft → Analyse aerodynamics → Fly it → Earn credits → Unlock better tools → Redesign → Retest.
+**The game loop:**
+
+```
+Choose a mission (fly 800 km with 2000 kg of passengers)
+        ↓
+Design your aircraft (wing size, engine power, airfoil shape)
+        ↓
+App calculates: Can it fly? How far? How fast? Is it safe?
+        ↓
+Fly the mission (you control pitch, throttle, flaps)
+        ↓
+See results: fuel used, efficiency score, whether you succeeded
+        ↓
+Earn credits → unlock better analysis tools → redesign → retry
+```
+
+---
+
+## The Big Picture: How It Works
+
+Imagine you're an aerospace engineer at a company. Your job is:
+
+1. **A customer gives you a mission:** "Fly 800 km with 2000 passengers"
+2. **You design an aircraft** to meet that mission
+3. **You run simulations** to check if your design works
+4. **You fly it** and see what happens
+5. **You learn** from what went wrong and improve
+
+Flight Ops does all of this in your browser. Here's the data flow:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    YOUR INPUTS                           │
+│  "I want to fly 800 km with 2000 kg of passengers"     │
+│  Wing: 10m span, 16m² area                             │
+│  Engine: Turboprop, 500 kW                             │
+│  Airfoil: NACA 2412                                    │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│              AERODYNAMICS ENGINE                        │
+│                                                         │
+│  "Given your wing shape and airspeed, here's how much  │
+│   lift and drag your wing produces."                    │
+│                                                         │
+│  Uses: Panel Method, Vortex Lattice, Thin-Airfoil      │
+│  Theory, Theodorsen unsteady aerodynamics               │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│              PROPULSION ENGINE                          │
+│                                                         │
+│  "Given your engine type and throttle, here's how much │
+│   thrust you get, and how fast you burn fuel."          │
+│                                                         │
+│  Uses: Blade Element Theory, SFC models, altitude       │
+│  correction                                            │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│              FLIGHT DYNAMICS                            │
+│                                                         │
+│  "Given your lift, drag, thrust, and weight — here's   │
+│   how the aircraft actually moves through the air."     │
+│                                                         │
+│  Uses: Newton's second law, Euler's rotational eqn,    │
+│  ISA atmosphere, fuel burn → mass change                │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│              RESULTS                                    │
+│                                                         │
+│  "Your aircraft can fly 750 km with 1800 kg payload.   │
+│   It burns 312 kg of fuel. Max L/D is 12.4.            │
+│   Stall speed is 28 m/s. Cruise at 120 m/s."          │
+│                                                         │
+│  Shows: performance charts, drag polar, thrust curves,  │
+│  stability analysis, weight breakdown                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**The key insight:** Every number you see comes from real physics equations. When you change the wing span, the lift changes. When you change the engine, the thrust changes. Nothing is faked.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Install (uses pnpm — a pnpm-lock.yaml is committed)
-pnpm install
+# Install (uses bun — a bun.lockb is committed)
+bun install
 
 # Run
-pnpm web          # Browser at http://localhost:8081
-pnpm android      # Android emulator/device
-pnpm ios          # iOS simulator (macOS)
+bun run web          # Browser at http://localhost:8081
+bun run android      # Android emulator/device
+bun run ios          # iOS simulator (macOS)
 
 # Verify
-pnpm test         # 127 tests, all passing
-pnpm lint         # ESLint
+bun test             # 157 tests, all passing
+bun run lint         # ESLint
 ```
 
 > **No environment variables required.** The game runs fully offline.
 
 ---
 
-## Two Learning Modes
+## The Physics Engine
 
-Switch between modes in the **Design** tab — the choice persists across sessions.
+This is the heart of Flight Ops. Every calculation uses real aerospace equations. Here's what's happening under the hood:
 
-### 🎮 Fun Mode — Learn by Playing
+### 1. Atmosphere Model (ISA)
 
-Perfect for beginners with no aerospace background.
+The app knows that air gets thinner as you go higher. At sea level, air density is 1.225 kg/m³. At 11 km (cruise altitude for airliners), it's only 0.364 kg/m³.
 
-**Pick from visual cards:**
-- 🎯 **Mission** — Learn to Fly, Passenger Flight, Cargo Haul, Speed Run, etc.
-- ✈️ **Wing** — Short & Stubby (fast), Long & Slender (efficient), Extra Wide (heavy lift)
-- 〰️ **Airfoil** — Symmetric (aerobatic), Mild Curve (GA), Deep Curve (high lift)
-- 🔷 **Tail** — Normal (reliable), T-Tail (clean), V-Tail (low drag), Canard (safe)
-- ⚙️ **Engine** — Propeller (simple), Turboprop (fast), Jet (speed), Electric (green)
+**Why this matters:** Thinner air means less lift AND less drag. Your aircraft performs differently at different altitudes.
 
-**Each choice shows a simple explanation:**
-> "Long, slender wings are like a glider — they cut through the air with less effort. That's why gliders have very long wings."
-
-### 📐 Engineering Mode — Sadraey-Style Design
-
-For aerospace students following the Sadraey conceptual design methodology.
-
-**7 real aircraft configurations:**
-| Config | Category | Description |
-|--------|----------|-------------|
-| Single-Engine Trainer | General Aviation | Cessna 172-style, piston, high wing |
-| Regional Turboprop | Commercial | Dash 8/ATR 72-style, T-tail, twin |
-| Narrowbody Jetliner | Commercial | A320/737-style, turbofan, swept wing |
-| Fighter Jet | Military | F-16-style, delta wing, high sweep |
-| Surveillance UAV | Unmanned | MQ-9 Reaper-style, long endurance |
-| Flying Wing | Experimental | B-2-style, max efficiency, no tail |
-| Canard Fighter | Military | Eurofighter-style, canard foreplane |
-
-**Every result shows the equation:**
+**The equation:**
 ```
-AR = b²/S = 11² / 16 = 7.6
-(L/D)_max = 0.5 × √(π × 0.85 × 7.6 / 0.018) = 12.4
-R = (V × L/D × η) / (g × TSFC) = 242 km
+ρ = 1.225 × e^(-h/8500)     [simplified exponential model]
 ```
 
----
+### 2. Lift and Drag
 
-## Design Tab — Mission Designer
+Your wing produces lift (the force that keeps you up) and drag (the force that slows you down). Both depend on air density, speed, and wing shape.
 
-The engineering heart of Flight Ops. Define missions and design aircraft to meet them.
-
-### Mission Definition
-
-8 preset missions with instant parameter loading:
-
-| Mission | Range | Speed | Payload | Best For |
-|---------|-------|-------|---------|----------|
-| Learn to Fly | 200 km | 55 m/s | 100 kg | Training |
-| Regional Passenger | 800 km | 120 m/s | 2,000 kg | Airliner design |
-| Long Range | 3,000 km | 200 m/s | 500 kg | Endurance |
-| Cargo Haul | 500 km | 90 m/s | 5,000 kg | Heavy lift |
-| Surveillance | 1,500 km | 60 m/s | 30 kg | UAV design |
-| Speed Run | 600 km | 250 m/s | 200 kg | Fighter design |
-| Crop Spraying | 50 km | 40 m/s | 800 kg | AG aircraft |
-| Custom | Any | Any | Any | Free design |
-
-### Aircraft Configuration
-
-Change any parameter and see performance update in real time:
-
-**Wing** — span, area, taper ratio, sweep, airfoil (NACA 0006 to 6412)
-
-**Tail** — Conventional, T-tail, V-tail, Canard, or No tail
-
-**Propulsion** — Piston, Turboprop, Turbofan, or Electric; engine count and power
-
-### What updates instantly
-- Mass breakdown (wing, fuselage, tail, propulsion, fuel, payload)
-- Aspect ratio, wing loading, power loading
-- Stall speed, cruise speed, max L/D
-- Range, endurance, climb rate, takeoff distance
-- Feasibility assessment with specific warnings
-
----
-
-## Aero Lab — Linear Aerodynamics
-
-A self-contained, dependency-free **linear-aerodynamics library** that runs on any platform. Same validated logic on web, iOS, and Android.
-
-### Models Implemented
-
-| Model | Method | What it does |
-|-------|--------|-------------|
-| ISA Atmosphere | Hydrostatic + Sutherland | T, p, ρ, a, μ at 0–20 km |
-| Dynamic Pressure | q = ½ρV² | Pressure from velocity |
-| Mach Number | M = V/a | Subsonic regime |
-| Reynolds Number | Re = ρVc/μ | Viscous effects |
-| Source Panel | Hess & Smith (1967) | Cp distribution around airfoil |
-| Vortex Lattice | 2D bound vortices | CL vs angle of attack |
-| Thin-Airfoil Theory | Fourier coefficients | Zero-lift angle α_L0 |
-| Drag Polar | CD = cd0 + k·CL² | Parasite + induced drag |
-| Prandtl-Glauert | CL_M = CL₀/√(1−M²) | Compressibility correction |
-| Pitching Moment | Cm_{c/4} from A1, A2 | Nose-down moment |
-| Theodorsen C(k) | Hankel functions (NACA TR 496) | Frequency-domain lift deficiency |
-| Wagner Φ(s) | Jones/Garrick/exact inversion | Indicial lift response |
-| Duhamel Superposition | Convolution with Wagner | Arbitrary α histories |
-| Discrete Vortex | Kelvin-shed wake (UVLM-lite) | Time-domain circulation |
-
-### Validation
-
-All validated against closed-form analytical solutions:
-
-| Test | Reference | Error |
-|------|-----------|-------|
-| Cylinder Cp | Exact doublet Cp = 1 − 4sin²θ | ~10⁻⁹ |
-| Flat-plate CL | Thin-airfoil CL = 2πα | 0.13% at 128 panels |
-| NACA 2412 α_L0 | −2.08° | Matches theory |
-| NACA 4412 α_L0 | −4.15° | Matches theory |
-| Prandtl-Glauert β | β = √(1−M²) | Exact |
-| Pitching moment | Symmetric Cm = 0 | Exact |
-| Bessel Wronskian | J₁Y₀ − J₀Y₁ = 2/(πx) | ~10⁻⁹ |
-| Theodorsen C(k) | C(0)=1, C(∞)=0.5 | Exact limits |
-| Wagner Φ(s) | Φ(0)=0.5, Φ(∞)=1 | Exact limits |
-| Duhamel↔Theodorsen | Garrick reciprocal relation | ~1% amplitude |
-
-### Units
-
-Everything is **SI**: metres, seconds, kg, Pa, N/m, K. Angles in degrees at the API boundary, radians internally.
-
----
-
-## Aero Credits — Progression System
-
-Earn credits by flying missions efficiently. Unlock higher-fidelity analysis tools.
-
-| Tier | Cost | What it unlocks |
-|------|------|----------------|
-| 🔢 Basic Analysis | Free | Empirical Cd0, stall, range |
-| 📊 Lifting-Line | 500 | Span efficiency, downwash |
-| 🔲 Panel Method | 1,200 | Cp distribution, velocity field |
-| 🌀 Vortex Lattice | 2,500 | 3D multi-surface analysis |
-| 🌊 Unsteady | 3,000 | Theodorsen, Wagner, flutter |
-| 📐 Stability | 4,000 | Static stability, CG envelope, trim |
-| 🧱 Advanced Materials | 1,500 | Composite weight reduction |
-| ⚙️ Propulsion Sim | 2,000 | Engine maps, fuel flow |
-
-**How to earn:**
-- Complete missions → base reward
-- High L/D efficiency → bonus
-- Safe flights → bonus
-- Heavy payloads → bonus
-- Meet range requirement → bonus
-
----
-
-## QR Code — Open on Phone
-
-Three strategies ensure the QR always works:
-
-1. **Auto-detect** — uses the web origin (works on deployed URLs)
-2. **WebRTC LAN detection** — finds your computer's IP (free, no API key, same WiFi)
-3. **Manual URL input** — paste the preview URL
-
-**How to use:**
-1. Open the app in the browser preview
-2. Go to the **Phone** tab or visit `/qr`
-3. Scan with your phone camera (iOS) or Google Lens (Android)
-4. Phone opens the same app — all gameplay works on-device
-
-The QR auto-refreshes every 5 seconds to catch new preview sessions.
-
----
-
-## Game — Cargo Airline
-
-Run a cargo airline: take contracts, design aircraft, fly missions, earn money.
-
-### How to Play
-
+**Lift equation:**
 ```
-Contracts → Hangar → Mission → Result → Company → Repeat
+L = ½ × ρ × V² × S × CL
 ```
 
-1. **Contracts** — pick a cargo job (payload, distance, reward, difficulty)
-2. **Hangar** — assemble aircraft from wings, engine, fuel tank
-3. **Mission** — fly with live telemetry, react to events (crosswind, engine vibration, fuel leak, bird strike, icing)
-4. **Result** — deliver payload for reward, or lose it. Net = reward − build cost
-5. **Company** — spend earnings on upgrades (composite airframe, laminar wings, AI co-pilot)
+Where:
+- ρ = air density (kg/m³)
+- V = airspeed (m/s)
+- S = wing area (m²)
+- CL = lift coefficient (depends on airfoil shape and angle of attack)
 
-### Features
-- **Design-to-mission loop** — parts change real physics (range, burn rate, safety)
-- **Deterministic missions** — seeded PRNG, reproducible events
-- **Choice-driven events** with engineering trade-offs
-- **Chain reactions** — damaged engines burn more fuel
-- **Fully offline** — no backend, no accounts, AsyncStorage persistence
+**Drag equation:**
+```
+D = ½ × ρ × V² × S × CD
+```
+
+Where CD = CD₀ + k × CL² (the "drag polar" — drag increases with the square of lift)
+
+### 3. Propulsion
+
+Your engine produces thrust. The app calculates how much thrust you get based on engine type, throttle setting, and altitude.
+
+**For jet engines:**
+```
+T = T_max × (ρ / ρ₀) × throttle
+```
+
+**For propeller engines:**
+```
+T = T_max × (ρ / ρ₀) × η_prop × throttle
+```
+
+Where η_prop is propeller efficiency (typically 0.75–0.85).
+
+### 4. Flight Mechanics
+
+The app uses Newton's second law (F = ma) to calculate how the aircraft moves:
+
+```
+Net force = Thrust − Drag − Weight × sin(γ)
+Acceleration = Net force / mass
+New speed = old speed + acceleration × time step
+```
+
+It also tracks fuel burn: as you burn fuel, the aircraft gets lighter, which changes how it flies.
+
+### 5. Unsteady Aerodynamics
+
+For dynamic maneuvers (pitching, gusts, turbulence), the app uses Theodorsen's theory:
+
+**Theodorsen C(k):** A complex-valued function that accounts for the fact that lift doesn't respond instantly to changes in angle of attack. The wake behind the wing takes time to develop.
+
+**Wagner Φ(s):** Shows how lift grows after a sudden change in angle of attack — it starts at 50% and grows to 100% as the wake develops.
+
+### 6. Panel Method
+
+To calculate pressure distribution around an airfoil, the app uses the panel method:
+
+1. Divide the airfoil surface into small flat panels
+2. Place a vortex on each panel
+3. Solve a system of equations so that air flows tangent to the surface
+4. Calculate pressure from velocity (Bernoulli's equation)
+
+This gives you the Cp curve — how pressure varies along the wing surface.
+
+---
+
+## Engineering Analysis Tools
+
+Beyond the basic flight model, FlightOps includes professional-grade analysis tools. These are the same methods used in aerospace industry and university courses:
+
+### Wind Tunnel Validation
+
+The app includes experimental data from NACA wind tunnel tests (NACA Report 824, 1959). You can compare the app's predictions against real-world measurements for NACA 0012, 2412, and 4412 airfoils.
+
+### Drag Polar Chart
+
+Shows CD vs CL — the fundamental relationship between drag and lift. Annotations show:
+- Maximum L/D point (most efficient cruise)
+- Minimum drag point
+- Stall region
+
+### Thrust Required vs Available
+
+Shows how much thrust you need to fly at each speed, versus how much your engine can provide. The intersection gives your maximum speed.
+
+### Stability Derivatives
+
+Computes CL_α, Cm_α, Cm_q, Cl_β, Cn_β, and other derivatives that determine whether your aircraft is stable. Predefined configurations for Cessna 172, F-16, Boeing 737, and ASK 21 glider.
+
+### Eigenvalue Mode Analysis
+
+Identifies the dynamic modes of your aircraft:
+- **Short-period:** Rapid pitch oscillation (1-3 seconds)
+- **Phugoid:** Slow altitude-speed exchange (30-100 seconds)
+- **Dutch roll:** Coupled yaw-roll oscillation
+- **Spiral:** Slow bank-heading divergence
+
+### Component Buildup Drag
+
+Uses Raymer's method to estimate drag from each component: wing skin friction, fuselage pressure drag, tail interference, nacelle drag.
+
+### Normal/Oblique Shock Calculator
+
+For supersonic flight: calculates the properties across a shock wave (pressure ratio, temperature ratio, Mach number change).
+
+### Prandtl-Meyer Expansion
+
+For supersonic flow around corners: calculates how the flow accelerates and pressure drops through an expansion fan.
+
+### Flight Envelope (V-n Diagram)
+
+Shows the structural and aerodynamic limits of your aircraft — maximum speed, stall speed, maximum load factor.
+
+### Trim Solver
+
+Finds the elevator deflection needed to maintain steady level flight (L=W, M=0).
+
+### Design Space Explorer
+
+Sweeps one parameter (wing area, span, mass, etc.) across a range and shows how it affects L/D, stall speed, and cruise speed.
 
 ---
 
@@ -258,32 +295,36 @@ Contracts → Hangar → Mission → Result → Company → Repeat
 
 ```
 app/                    Expo Router screens
-  (tabs)/               Hangar · Contracts · Aero Lab · Design · Company · Phone
-  qr.tsx                Standalone QR code (/qr)
+  (tabs)/               Tabs: Hangar · Contracts · Aero Lab · Design · Company
   mission.tsx           In-flight mission control
   result.tsx            Mission outcome
+  qr.tsx                QR code for sharing
+
 components/
-  FunMode.tsx           Fun Mode — intuitive visual design
+  FunMode.tsx           Fun Mode — visual aircraft design
   EngineeringMode.tsx   Engineering Mode — Sadraey-style analysis
-  feature/              Domain components (ContractCard, FlowField, etc.)
-  ui/                   Shared UI (Panel, Badge, Button, etc.)
-services/
-  aerodynamics.ts       ISA, panel method, VLM, drag polar, Prandtl-Glauert, Cm
-  unsteady.ts           Theodorsen C(k), Wagner Φ(s), Duhamel superposition
-  unsteady-vortex.ts    Discrete vortex-panel method (UVLM-lite)
-  mission-design.ts     Mission definition and requirements engine
-  aircraft-config.ts    Detailed aircraft geometry and mass breakdown
-  aero-credits.ts       Credits, progression, tech unlocks, explanations
-  simulation.ts         Mission physics/telemetry
+  EngineeringSimulation.tsx  Full 3D hangar + flight simulation
+  feature/              AeroChart, UnsteadyLab, TelemetryDeck, etc.
+  three/                3D models (AircraftModel, Hangar3D, World, Particles)
+  ui/                   Shared UI (Panel, Badge, Button, StatBar)
+
+services/               Pure logic — no UI, no I/O
+  aerodynamics.ts       ISA, panel method, VLM, drag polar, BEM, shocks, trim
+  aero/stability.ts     Stability derivatives, eigenvalue analysis
+  aero/windtunnel.ts    NACA experimental data
+  aero/engineering.ts   Component drag, weight, Breguet, shocks, Prandtl-Meyer
+  aero/panel.ts         Source + vortex panel method (Katz & Plotkin)
+  aero/liftingLine.ts   Prandtl numerical lifting-line theory
+  aero/unsteady.ts      Theodorsen C(k), Wagner Φ(s)
+  aero/xfoil.ts         UIUC airfoil database integration
+  aircraft-config.ts    Aircraft geometry → mass → performance
+  flight-state-machine.ts  Flight phases (preflight → cruise → landing)
+  fun-flight.ts         Fun Mode physics engine
+  mission-design.ts     Mission requirements and scoring
+  simulation.ts         Mission telemetry
   contracts.ts          Procedural contract generation
-  reachable-url.ts      QR URL resolution (WebRTC LAN detection)
-contexts/
-  GameContext.tsx        Game state provider
-  ModeContext.tsx        Learning mode (Fun/Engineering) persistence
-hooks/
-  useGame.tsx           Game state consumer
-  useMission.tsx        Mission state machine
-tests/                  127 Vitest tests across 9 files
+
+tests/                  157 Vitest tests across 9 files
 docs/                   Research provenance and validation
 ```
 
@@ -300,12 +341,13 @@ contexts/hooks (game state, mission lifecycle, learning mode)
         ▼
 services/ (pure, testable logic — no React, no I/O)
    ├── aerodynamics.ts      ISA, panel method, vortex lattice, drag polar
+   ├── aero/stability.ts    Stability derivatives, eigenvalue modes
+   ├── aero/engineering.ts  Component drag, weight, Breguet, shocks
+   ├── aero/windtunnel.ts   NACA experimental data for validation
    ├── unsteady.ts          Theodorsen, Wagner, Duhamel
-   ├── mission-design.ts    Mission → engineering requirements
    ├── aircraft-config.ts   Geometry → mass → performance
-   ├── aero-credits.ts      Progression system
-   ├── simulation.ts        Mission physics
-   └── rng.ts               Deterministic RNG
+   ├── mission-design.ts    Mission → engineering requirements
+   └── simulation.ts        Mission physics
         │
         ▼
 AsyncStorage (save state) — no backend required
@@ -326,23 +368,24 @@ AsyncStorage (save state) — no backend required
 | Framework | React Native 0.79 · React 19 · Expo SDK 53 |
 | Navigation | Expo Router 5 (file-based) |
 | Language | TypeScript 5.8 (strict) |
+| 3D Graphics | Three.js via @react-three/fiber |
 | State | React context + AsyncStorage |
 | Charts | react-native-svg |
-| Icons | @expo/vector-icons |
-| Testing | Vitest (127 tests) |
-| Validation | Python harness (scripts/validate_aero.py) |
+| Testing | Vitest (157 tests) |
+| Styling | NativeWind (Tailwind for React Native) |
 
 ---
 
 ## Testing
 
 ```bash
-pnpm test       # Run all 127 tests
+bun test       # Run all 157 tests
 ```
 
 | Suite | Tests | What it covers |
 |-------|-------|----------------|
-| Aerodynamics | 37 | Cylinder Cp, CL convergence, zero-lift angles, Prandtl-Glauert, Cm |
+| Aerodynamics | 42 | Cylinder Cp, CL convergence, zero-lift angles, Prandtl-Glauert, Cm, wind tunnel validation, BEM propeller, boundary layer transition |
+| Stability | 8 | Derivative computation, eigenvalue modes, aircraft configs |
 | Unsteady | 23 | Bessel Wronskian, Theodorsen limits, Wagner bounds, Duhamel |
 | Discrete Vortex | 8 | Kelvin conservation, Wagner step-response |
 | Mission Design | 15 | Preset missions, requirements, scoring, mass breakdown |
@@ -351,6 +394,27 @@ pnpm test       # Run all 127 tests
 | Simulation | 6 | Mission telemetry sanity |
 | Contracts | 4 | RNG reproducibility, difficulty scaling |
 | Math Utils | 7 | Clamp, round, lerp edge cases |
+
+---
+
+## Mathematical Models Summary
+
+| Model | Equation | What it calculates |
+|-------|----------|-------------------|
+| ISA Atmosphere | ρ = ρ₀ × e^(-h/H) | Air density at altitude |
+| Lift | L = ½ρV²S×CL | Wing lift force |
+| Drag Polar | CD = CD₀ + k×CL² | Total drag coefficient |
+| Panel Method | σ = solve(A·x = b) | Pressure distribution |
+| Vortex Lattice | Γ = solve(A·γ = α) | Section lift coefficient |
+| Theodorsen | C(k) = H₁⁽²⁾/(H₁⁽²⁾ + iH₀⁽²⁾) | Unsteady lift deficiency |
+| Wagner | Φ(s) = 1 − 0.165e⁻⁰·⁰⁴⁵⁵ˢ − 0.335e⁻⁰·³ˢ | Indicial lift response |
+| BEM Propeller | dT = (L·cosφ − D·sinφ) × 2πr·dr | Propeller thrust |
+| Prandtl Tip Loss | F = (2/π)×arccos(e⁻ᶠ) | Blade tip correction |
+| Normal Shock | p₂/p₁ = 1 + (2γ/(γ+1))(M₁² − 1) | Post-shock pressure |
+| Prandtl-Meyer | ν(M) = √((γ+1)/(γ−1))×arctan(...) − arctan(...) | Expansion fan angle |
+| Breguet Range | R = (V/SFC)×(L/D)×ln(Wᵢ/W𝒻) | Aircraft range |
+| Raymer Weight | W = Σ(component statistics) | Structural weight estimate |
+| Trim | δe = −(Cm₀ + Cmα×α)/Cmδe | Elevator for level flight |
 
 ---
 
@@ -363,18 +427,22 @@ pnpm test       # Run all 127 tests
 - Abbott, I.H. & von Doenhoff, A.E. — *Theory of Wing Sections* (1959)
 - Theodorsen, T. — NACA TR 496 (1935)
 - Wagner, H. — ZAMM 5:17-35 (1925)
-- Jones, R.T. — NACA TR 681 (1940)
-- Garrick, I.E. — NACA TR 629 (1938)
-- Dawson & Brunton — arXiv:2104.15122 (2021)
+- McCormick, B.W. — *Aerodynamics of Aeronautical Propulsion* (1995)
+
+### Flight Dynamics & Stability
+- Nelson, R.C. — *Flight Stability and Automatic Control*, 2nd ed. (1998)
+- Etkin, B. & Reid, L.D. — *Dynamics of Flight: Stability and Control* (1996)
 
 ### Aircraft Design
 - Sadraey, M.H. — *Aircraft Design: A Conceptual Approach*, 6th ed. (2023)
 - Raymer, D.P. — *Aircraft Design: A Conceptual Approach*, 6th ed. (2018)
 
-### Computational
-- Barba & Mesnard — AeroPython (2019, BSD-3-Clause)
-- Imperial College London — SHARPy/UVLM (BSD-3-Clause)
-- Abramowitz & Stegun — *Handbook of Mathematical Functions* (1965)
+### Compressible Flow
+- Anderson, J.D. — *Modern Compressible Flow*, 3rd ed. (2003)
+
+### Wind Tunnel Data
+- Abbott, I.H. & von Doenhoff, A.E. — NACA Report No. 824 (1959)
+- UIUC Low-Speed Airfoil Tests — Selig et al.
 
 All aerodynamic models are **original TypeScript implementations** by Ojasvi Goel. No third-party source code was copied. See `docs/RESEARCH.md` for full provenance.
 
