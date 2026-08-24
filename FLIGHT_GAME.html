@@ -117,7 +117,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="key-hints" id="key-hints">
       <div class="key-hint"><kbd>W</kbd><kbd>S</kbd> Throttle</div>
       <div class="key-hint"><kbd>↑</kbd><kbd>↓</kbd> Pitch</div>
-      <div class="key-hint"><kbd>←</kbd><kbd>→</kbd> Yaw/Roll</div>
+      <div class="key-hint"><kbd>←</kbd><kbd>→</kbd> Roll</div>
+      <div class="key-hint"><kbd>A</kbd><kbd>D</kbd> Rudder</div>
       <div class="key-hint"><kbd>G</kbd> Gear</div>
       <div class="key-hint"><kbd>F</kbd> Flaps</div>
       <div class="key-hint"><kbd>B</kbd> Brake</div>
@@ -141,7 +142,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         <span class="ctrl-value" id="pitch-val">—</span>
       </div>
       <div class="ctrl-row">
-        <span class="ctrl-label">Yaw</span>
+        <span class="ctrl-label">Roll</span>
+        <button class="ctrl-btn" ontouchstart="adj('roll',-0.15)" onmousedown="adj('roll',-0.15)">←</button>
+        <div class="ctrl-bar"><div class="ctrl-indicator" id="roll-ind" style="left:50%"></div></div>
+        <button class="ctrl-btn" ontouchstart="adj('roll',0.15)" onmousedown="adj('roll',0.15)">→</button>
+        <span class="ctrl-value" id="roll-val">—</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Rudder</span>
         <button class="ctrl-btn" ontouchstart="adj('yaw',-0.15)" onmousedown="adj('yaw',-0.15)">←</button>
         <div class="ctrl-bar"><div class="ctrl-indicator" id="yaw-ind" style="left:50%"></div></div>
         <button class="ctrl-btn" ontouchstart="adj('yaw',0.15)" onmousedown="adj('yaw',0.15)">→</button>
@@ -227,6 +235,7 @@ let G={
   throttle:0.5,
   cmdPitch:0,    // commanded pitch deflection [-1,1] — joystick
   cmdRoll:0,     // commanded roll deflection [-1,1] — joystick
+  cmdYaw:0,      // commanded yaw/rudder deflection [-1,1] — joystick
   gearDown:true,
   flapDeg:0,
   brakeOn:true,
@@ -612,13 +621,13 @@ function stepFlight(dt){
   G.phi=clamp(G.phi,-1.2,1.2);
 
   // Heading change from bank angle: ψ_dot = g * tan(φ) / V
-  // (Coordinated turn equation)
+  // (Coordinated turn equation — standard flight mechanics)
   if(G.airspeedMs>5){
     const headingRate=9.81*Math.tan(G.phi)/G.airspeedMs;
     G.heading+=headingRate*180/Math.PI*dt;
   }
-  // Yaw input also changes heading directly (rudder authority)
-  G.heading+=G.cmdRoll*30*dt; // rudder effect
+  // Rudder yaw: cmdYaw affects heading directly (adverse yaw, slip)
+  G.heading+=G.cmdYaw*15*dt;
   G.heading=((G.heading%360)+360)%360;
 
   // --- 12. UPDATE FLIGHT-PATH ANGLE ---
@@ -757,7 +766,7 @@ function finishFlight(completed){
 
 function resetFlight(){
   document.getElementById('result-overlay').style.display='none';
-  Object.assign(G,{flying:false,paused:false,x:0,alt:1,z:0,airspeedMs:0,gamma:0,heading:180,theta:0,phi:0,q:0,p:0,beta:0,throttle:0.5,cmdPitch:0,cmdRoll:0,gearDown:true,flapDeg:0,brakeOn:true,engineRunning:false,engineRPM:0,engineTemp:20,thrustN:0,fuelFlowRate:0,aoaDeg:0,cl:0,cd:0,liftN:0,dragN:0,dynamicPressure:0,gLoad:1,totalTime:0,distFlown:0,progress:0,maxSpeed:0,maxAoA:0,maxG:1,minG:1,integrity:100,icingLevel:0,activeEvent:null,eventLog:[],totalFuelUsed:0,controlSmoothness:0,stallWarnings:0});
+  Object.assign(G,{flying:false,paused:false,x:0,alt:1,z:0,airspeedMs:0,gamma:0,heading:180,theta:0,phi:0,q:0,p:0,beta:0,throttle:0.5,cmdPitch:0,cmdRoll:0,cmdYaw:0,gearDown:true,flapDeg:0,brakeOn:true,engineRunning:false,engineRPM:0,engineTemp:20,thrustN:0,fuelFlowRate:0,aoaDeg:0,cl:0,cd:0,liftN:0,dragN:0,dynamicPressure:0,gLoad:1,totalTime:0,distFlown:0,progress:0,maxSpeed:0,maxAoA:0,maxG:1,minG:1,integrity:100,icingLevel:0,activeEvent:null,eventLog:[],totalFuelUsed:0,controlSmoothness:0,stallWarnings:0});
   G.fuelKg=300;G.massKg=G.dryMassKg+300;
   stopEngineSound();showScreen('design');
 }
@@ -801,8 +810,10 @@ function updateHUD(){
   document.getElementById('throttle-val').textContent=`${(G.throttle*100).toFixed(0)}%`;
   document.getElementById('pitch-ind').style.left=`${50+G.cmdPitch*45}%`;
   document.getElementById('pitch-val').textContent=G.cmdPitch>0.01?'↑':G.cmdPitch<-0.01?'↓':'—';
-  document.getElementById('yaw-ind').style.left=`${50+G.cmdRoll*45}%`;
-  document.getElementById('yaw-val').textContent=G.cmdRoll>0.01?'→':G.cmdRoll<-0.01?'←':'—';
+  document.getElementById('roll-ind').style.left=`${50+G.cmdRoll*45}%`;
+  document.getElementById('roll-val').textContent=G.cmdRoll>0.01?'→':G.cmdRoll<-0.01?'←':'—';
+  document.getElementById('yaw-ind').style.left=`${50+G.cmdYaw*45}%`;
+  document.getElementById('yaw-val').textContent=G.cmdYaw>0.01?'→':G.cmdYaw<-0.01?'←':'—';
   const lb=document.getElementById('launch-btn');
   if(G.flying){lb.textContent='✈️ Flying...';lb.disabled=true}else{lb.textContent='🛫 Launch Flight Test';lb.disabled=false}
 }
@@ -813,7 +824,8 @@ function updateHUD(){
 function adj(axis,delta){
   if(axis==='throttle')G.throttle=clamp(G.throttle+delta,0,1);
   else if(axis==='pitch')G.cmdPitch=clamp(G.cmdPitch+delta,-1,1);
-  else if(axis==='yaw')G.cmdRoll=clamp(G.cmdRoll+delta,-1,1);
+  else if(axis==='roll')G.cmdRoll=clamp(G.cmdRoll+delta,-1,1);
+  else if(axis==='yaw')G.cmdYaw=clamp(G.cmdYaw+delta,-1,1);
 }
 const keys={};
 document.addEventListener('keydown',e=>{
@@ -840,6 +852,10 @@ function handleKeyboard(){
   if(keys['ArrowLeft'])G.cmdRoll=clamp(G.cmdRoll-0.012,-1,1);
   else if(keys['ArrowRight'])G.cmdRoll=clamp(G.cmdRoll+0.012,-1,1);
   else G.cmdRoll*=0.92; // SPRING RETURN TO CENTER
+  // Rudder/Yaw: A/D keys
+  if(keys['a']||keys['A'])G.cmdYaw=clamp(G.cmdYaw-0.012,-1,1);
+  else if(keys['d']||keys['D'])G.cmdYaw=clamp(G.cmdYaw+0.012,-1,1);
+  else G.cmdYaw*=0.92; // SPRING RETURN TO CENTER
 }
 
 // ============================================================
@@ -850,7 +866,7 @@ function startFlight(){
   G.flying=true;G.paused=false;
   G.x=0;G.alt=1;G.z=0;G.airspeedMs=15;G.heading=180;G.gamma=0;
   G.theta=0;G.phi=0;G.q=0;G.p=0;G.beta=0;
-  G.throttle=0.5;G.cmdPitch=0;G.cmdRoll=0;
+  G.throttle=0.5;G.cmdPitch=0;G.cmdRoll=0;G.cmdYaw=0;G.cmdYaw=0;
   G.gearDown=true;G.flapDeg=0;G.brakeOn=true;
   G.fuelKg=300;G.massKg=G.dryMassKg+300;
   G.totalTime=0;G.distFlown=0;G.progress=0;
