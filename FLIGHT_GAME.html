@@ -377,10 +377,10 @@ function stepFlight(dt){
   G.machNumber=G.airspeedMs/aSound;
 
   // --- 2. WIND → RELATIVE AIRFLOW ---
+  // Wind blows FROM windDir: velocity components in ground frame (x=east, z=north)
   let windX=0, windZ=0;
   if(G.mission){
     const wRad=G.mission.env.windDir*Math.PI/180;
-    // Wind blows FROM windDir, so velocity components:
     windX=G.mission.env.windMs*Math.sin(wRad); // east
     windZ=-G.mission.env.windMs*Math.cos(wRad); // north
     // Add turbulence (random gusts)
@@ -406,25 +406,26 @@ function stepFlight(dt){
       }
     }
   }
-  // Effective airspeed = ground velocity - wind velocity (projected onto heading)
-  // Simplified: compute headwind/tailwind and crosswind components
+  // Compute sideslip from crosswind: β = arctan(V_crosswind / V_along_track)
+  // V_along_track = airspeed along heading, V_cross = crosswind perpendicular to heading
   const hRad=G.heading*Math.PI/180;
-  const headwind=windX*Math.sin(hRad)-windZ*Math.cos(hRad); // positive = headwind
-  const crosswind=windX*Math.cos(hRad)+windZ*Math.sin(hRad); // positive = from right
-  // True airspeed (ground speed + wind effect on air)
-  // Airspeed is relative to air mass, so wind changes ground speed not airspeed
-  // But for effective dynamic pressure we use airspeed (already relative to air)
-  // Wind affects POSITION, not aerodynamic airspeed
+  const vAlong=G.airspeedMs*Math.cos(G.gamma); // horizontal airspeed along heading
+  const crossTrack=windX*Math.cos(hRad)+windZ*Math.sin(hRad); // crosswind component
+  if(vAlong>2){
+    G.beta+=(Math.atan2(crossTrack,vAlong)*0.5-G.beta*2)*dt;
+  }else{G.beta*=0.9}
+  G.beta=clamp(G.beta,-0.3,0.3);
+  // Headwind/tailwind affects ground speed (along-track)
+  const headwind=-(windX*Math.sin(hRad)+windZ*Math.cos(hRad)); // positive=headwind
+  const groundSpeedAlongTrack=vAlong-headwind; // ground speed along flight direction
+  // Total ground velocity for position update (includes crosswind drift)
+  const gVx=vAlong*Math.sin(hRad)+windX;
+  const gVz=-vAlong*Math.cos(hRad)+windZ;
 
   // --- 3. ANGLE OF ATTACK ---
-  // α = θ - γ  (pitch attitude minus flight-path angle)
+  // α = θ - γ  (pitch attitude minus flight-path angle) — the fundamental aero variable
   G.aoaDeg=(G.theta-G.gamma)*180/Math.PI;
   const aoaRad=G.theta-G.gamma;
-
-  // --- 4. SIDESLIP ---
-  // β affected by yaw input and crosswind
-  G.beta+=(crosswind/G.airspeedMs*0.5-G.beta*2)*dt;
-  G.beta=clamp(G.beta,-0.3,0.3);
 
   // --- 5. AERODYNAMIC COEFFICIENTS ---
   // CL = CL_alpha * (alpha - alpha_L0) + delta_CL_flaps
@@ -627,14 +628,10 @@ function stepFlight(dt){
   G.airspeedMs=Math.max(0,G.airspeedMs);
 
   // --- 14. UPDATE POSITION ---
-  const cosG=Math.cos(G.gamma);
-  const sinG=Math.sin(G.gamma);
-  const hRad2=G.heading*Math.PI/180;
-  // Ground speed = airspeed * cos(gamma) (projected onto horizontal)
-  const groundSpeed=G.airspeedMs*cosG;
-  G.x+=groundSpeed*Math.sin(hRad2)*dt;
-  G.z-=groundSpeed*Math.cos(hRad2)*dt;
-  G.alt+=G.airspeedMs*sinG*dt;
+  // Use wind-affected ground velocity for position (gVx = east, gVz = north)
+  G.x+=gVx*dt;
+  G.z+=gVz*dt;
+  G.alt+=G.airspeedMs*Math.sin(G.gamma)*dt;
 
   // --- 15. GROUND INTERACTION ---
   if(G.alt<=0){
@@ -695,7 +692,7 @@ function stepFlight(dt){
   }
 
   // --- 19. DISTANCE & PROGRESS ---
-  G.distFlown+=groundSpeed*dt;
+  G.distFlown+=Math.max(0,groundSpeedAlongTrack)*dt;
   G.maxSpeed=Math.max(G.maxSpeed,G.airspeedMs);
   G.progress=clamp(G.distFlown/100000,0,1);
 
