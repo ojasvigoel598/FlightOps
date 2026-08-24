@@ -1443,3 +1443,110 @@ export function thrustRequiredVsAvailable(
 }
 
 // ---------------------------------------------------------------------------
+// Feature 13 — Flight Envelope: V-n Diagram
+// ---------------------------------------------------------------------------
+//
+// The V-n diagram shows the structural and aerodynamic limits of an aircraft.
+// It is the single most important chart for understanding flight limits.
+//
+// Limits:
+//   • V_s  — stall speed (CLmax)
+//   • V_NE — never-exceed speed (structural/aero)
+//   • V_A — maneuvering speed (full control authority below stall)
+//   • V_C  — cruise speed
+//   • n_max — maximum positive load factor
+//   • n_min — minimum negative load factor (usually -1 to -3)
+//
+// Reference: FAR 23, Raymer Ch. 15, Anderson "Flight Mechanics" Ch. 3.
+
+export interface FlightEnvelopePoint {
+  velocityMs: number;
+  nLoad: number;  // load factor (n = L/W)
+  /** Region label */
+  region: string;
+}
+
+export interface FlightEnvelopeResult {
+  /** Upper boundary (positive maneuver + gust) */
+  upper: FlightEnvelopePoint[];
+  /** Lower boundary (negative maneuver) */
+  lower: FlightEnvelopePoint[];
+  /** Key speeds */
+  vs: number;      // stall speed at 1g
+  va: number;      // maneuvering speed
+  vc: number;      // cruise speed
+  vne: number;     // never-exceed speed
+  /** Key load factors */
+  nMax: number;    // max positive n
+  nMin: number;    // max negative n (negative value)
+  /** Whether the design is structurally adequate */
+  valid: boolean;
+  warnings: string[];
+}
+
+export function generateFlightEnvelope(
+  weightN: number,
+  wingAreaM2: number,
+  clMax: number,
+  clMinNeg: number = -1.0,
+  maxSpeedMs: number = 100,
+  nMax: number = 3.8,
+  nMin: number = -1.52,
+  nPoints: number = 60,
+): FlightEnvelopeResult {
+  const rho0 = 1.225;
+  const warnings: string[] = [];
+
+  // Stall speed at 1g: W = 0.5 ρ V² S CLmax
+  const vs = Math.sqrt((2 * weightN) / (rho0 * wingAreaM2 * clMax));
+  const vne = maxSpeedMs * 1.25;  // 1.25 × Vmax typical
+  const vc = maxSpeedMs * 0.85;   // 85% of Vmax typical
+  const va = vs * Math.sqrt(nMax); // V_A = V_s × √(n_max)
+
+  const upper: FlightEnvelopePoint[] = [];
+  const lower: FlightEnvelopePoint[] = [];
+  const dV = (vne - vs * 0.8) / nPoints;
+
+  for (let i = 0; i <= nPoints; i++) {
+    const V = vs * 0.8 + i * dV;
+    if (V <= 0) continue;
+
+    // Positive boundary:
+    // Below Va: structural limit (n_max) — full control authority
+    // Above Va: aerodynamic limit (CLmax) — stall-limited
+    const nAeroMax = (0.5 * rho0 * V * V * wingAreaM2 * clMax) / weightN;
+    const nUpper = Math.min(nAeroMax, nMax);
+
+    // Negative boundary:
+    const nAeroMin = (0.5 * rho0 * V * V * wingAreaM2 * clMinNeg) / weightN;
+    const nLower = Math.max(nAeroMin, nMin);
+
+    const regionUpper = V < va ? 'structural' : 'aerodynamic';
+
+    if (nUpper > 0.1) {
+      upper.push({ velocityMs: V, nLoad: nUpper, region: regionUpper });
+    }
+    if (nLower < -0.1) {
+      lower.push({ velocityMs: V, nLoad: nLower, region: 'negative' });
+    }
+  }
+
+  if (vs > vne) {
+    warnings.push('Stall speed exceeds never-exceed speed — design is critically limited.');
+  }
+
+  return {
+    upper,
+    lower,
+    vs,
+    va,
+    vc,
+    vne,
+    nMax,
+    nMin,
+    valid: warnings.length === 0,
+    warnings,
+  };
+}
+
+// ---------------------------------------------------------------------------
