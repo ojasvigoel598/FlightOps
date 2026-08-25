@@ -104,7 +104,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div style="font-size:64px">✈️</div>
     <h1>FlightOps</h1>
     <p class="subtitle">Design your aircraft, pick a mission, and fly with real aerospace physics. Every control surface affects aerodynamics. Every engineering decision matters.</p>
-    <button class="menu-btn" onclick="showScreen('design')">🎮 Start Designing</button>
+    <button class="menu-btn" onclick="quickPlay()" style="background:linear-gradient(135deg,#FFB020,#F59E0B);font-size:22px;padding:18px 56px">🚀 Quick Play</button>
+    <button class="menu-btn secondary" onclick="showScreen('design')">🎮 Design Aircraft</button>
+    <div class="how-to-play" style="margin-top:20px;text-align:left;max-width:400px">
+      <div style="color:var(--primary);font-weight:700;margin-bottom:8px">How to Play:</div>
+      <div style="font-size:12px;color:var(--faint);line-height:1.8">
+        <div>⬆️ <kbd>W/S</kbd> Pitch up/down</div>
+        <div>⬅️ <kbd>←→</kbd> Roll left/right</div>
+        <div>🔊 <kbd>A/D</kbd> Rudder left/right</div>
+        <div>⚡ <kbd>Q/E</kbd> Throttle up/down</div>
+        <div>🔧 <kbd>G</kbd> Gear &nbsp; <kbd>F</kbd> Flaps &nbsp; <kbd>B</kbd> Brake</div>
+      </div>
+    </div>
     <div style="color:var(--faint);font-size:12px;margin-top:12px">Real flight dynamics • Angular momentum • AoA-driven lift • No API keys • Works offline</div>
   </div>
   <div id="design" class="screen"><div id="design-content"></div></div>
@@ -156,7 +167,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         <span class="ctrl-value" id="yaw-val">—</span>
       </div>
       <button class="launch-btn" id="launch-btn" onclick="startFlight()">🛫 Launch Flight Test</button>
-      <button class="back-btn" onclick="showScreen('design')">← Back to Design</button>
+      <button class="back-btn" onclick="showScreen('menu')">← Back to Menu</button>
     </div>
     <div class="result-overlay" id="result-overlay" style="display:none"></div>
   </div>
@@ -859,6 +870,19 @@ function handleKeyboard(){
 }
 
 // ============================================================
+// ============================================================
+// QUICK PLAY — Skip design, fly immediately with default aircraft
+// ============================================================
+function quickPlay(){
+  G.wingId='medium';G.airfoilId='naca2412';G.tailId='conventional';G.engineId='piston';
+  G.wingSpanM=10;G.wingAreaM2=16;G.aspectRatio=6.25;
+  G.dryMassKg=800;G.fuelKg=300;G.massKg=1100;
+  G.maxThrustN=4500;G.sfc=0.00015;G.cd0=0.018;
+  G.clAlpha=2*Math.PI;G.clMax=1.65;G.oswaldE=0.85;
+  G.mission=MISSIONS[0];
+  showScreen('flight-screen');resizeCanvas();startFlight();updateHUD();
+}
+
 // START FLIGHT
 // ============================================================
 function startFlight(){
