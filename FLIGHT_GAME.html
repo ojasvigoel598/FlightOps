@@ -1111,7 +1111,7 @@ function drawInstruments(){
   ctx.fillRect(vx-4,vy-vsNorm*vh,8,vsNorm*vh);
   ctx.fillStyle='#94A3B8';ctx.font='8px monospace';ctx.textAlign='center';ctx.fillText('V/S',vx,vy+vh+12);ctx.fillText(vs.toFixed(1)+'m/s',vx,vy+vh+22);ctx.textAlign='left';
   // Airspeed bar (bottom center)
-  var sx=W/2-60,sy=H-25,sw=120,sh=10;
+  const sx=W/2-60,sy=H-25,sw=120,sh=10;
   ctx.fillStyle='#0D1B2A';ctx.fillRect(sx,sy,sw,sh);
   var spdPct=clamp(G.airspeedMs/200,0,1);
   ctx.fillStyle=spdPct>0.9?'#EF4444':spdPct>0.7?'#FFB020':'#4ADE80';
