@@ -1121,7 +1121,7 @@ function drawInstruments(){
   // Altitude bar (right side, vertical)
   const ax=W-30,ay=100,ah=200;
   ctx.fillStyle='#0D1B2A';ctx.fillRect(ax-5,ay,10,ah);
-  var altPct=clamp(G.alt/10000,0,1);
+  const altPct=clamp(G.alt/10000,0,1);
   ctx.fillStyle=G.alt>8000?'#EF4444':'#3B82F6';
   ctx.fillRect(ax-5,ay+ah-ah*altPct,10,ah*altPct);
   ctx.fillStyle='#E2E8F0';ctx.font='10px monospace';ctx.textAlign='center';
