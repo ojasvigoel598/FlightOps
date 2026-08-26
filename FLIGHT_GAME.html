@@ -906,6 +906,8 @@ function finishFlight(completed){
     <div class="result-title">${completed&&G.integrity>0?'Mission Complete!':'Mission Failed'}</div>
     <div class="result-sub">${objsMet}/${total} objectives • ${G.mission?Math.round(G.mission.credit*pct):0} credits</div>
     <div class="result-objs">${objResults.map(o=>`<div class="result-obj ${o.met?'met':'unmet'}">${o.met?'✅':'❌'} ${o.text}</div>`).join('')}</div>
+    ${G.replay.length>10?`<div style="margin-top:12px;text-align:center"><canvas id="replay-canvas" width="280" height="100" style="border:1px solid #334155;border-radius:8px"></div>`:''}
+
     <div class="result-stats">
       <b>Flight Time:</b> ${G.totalTime.toFixed(0)}s &nbsp;|&nbsp; <b>Distance:</b> ${(G.distFlown/1000).toFixed(1)} km<br>
       <b>Max Speed:</b> ${(G.maxSpeed*3.6).toFixed(0)} km/h &nbsp;|&nbsp; <b>Max AoA:</b> ${G.maxAoA.toFixed(1)}°<br>
@@ -916,8 +918,26 @@ function finishFlight(completed){
     </div>
     <button class="result-btn" onclick="resetFlight()">Back to Missions</button>
   </div>`;
+  setTimeout(drawReplay,100);
 }
 
+function drawReplay(){
+  var rc=document.getElementById('replay-canvas');if(!rc||G.replay.length<2)return;
+  var rctx=rc.getContext('2d');var w=rc.width,h=rc.height;
+  rctx.fillStyle='#0D1B2A';rctx.fillRect(0,0,w,h);
+  var minX=Math.min.apply(null,G.replay.map(function(r){return r.x}));
+  var maxX=Math.max.apply(null,G.replay.map(function(r){return r.x}));
+  var maxA=Math.max.apply(null,G.replay.map(function(r){return r.alt}));
+  var rangeX=maxX-minX||1;
+  rctx.strokeStyle='#4ADE80';rctx.lineWidth=2;rctx.beginPath();
+  for(var i=0;i<G.replay.length;i++){
+    var rx=10+(G.replay[i].x-minX)/rangeX*(w-20);
+    var ry=h-10-(G.replay[i].alt/Math.max(maxA,1))*(h-20);
+    if(i===0)rctx.moveTo(rx,ry);else rctx.lineTo(rx,ry);
+  }
+  rctx.stroke();
+  rctx.fillStyle='#94A3B8';rctx.font='9px monospace';rctx.fillText('Flight Path',5,12);
+}
 function resetFlight(){
   document.getElementById('result-overlay').style.display='none';
   Object.assign(G,{flying:false,paused:false,x:0,alt:1,z:0,airspeedMs:0,gamma:0,heading:180,theta:0,phi:0,q:0,p:0,beta:0,throttle:0.5,cmdPitch:0,cmdRoll:0,cmdYaw:0,gearDown:true,flapDeg:0,brakeOn:true,engineRunning:false,engineRPM:0,engineTemp:20,thrustN:0,fuelFlowRate:0,aoaDeg:0,cl:0,cd:0,liftN:0,dragN:0,dynamicPressure:0,gLoad:1,totalTime:0,distFlown:0,progress:0,maxSpeed:0,maxAoA:0,maxG:1,minG:1,integrity:100,icingLevel:0,activeEvent:null,eventLog:[],totalFuelUsed:0,controlSmoothness:0,stallWarnings:0});
@@ -1040,7 +1060,7 @@ function startFlight(){
   G.fuelKg=300;G.massKg=G.dryMassKg+300;
   G.totalTime=0;G.distFlown=0;G.progress=0;
   G.integrity=100;G.icingLevel=0;G.maxSpeed=0;G.maxAoA=0;G.maxG=1;G.minG=1;
-  G.activeEvent=null;G.eventLog=[];G.totalFuelUsed=0;G.controlSmoothness=0;G.stallWarnings=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;
+  G.activeEvent=null;G.eventLog=[];G.totalFuelUsed=0;G.controlSmoothness=0;G.stallWarnings=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;G.replay=[];G._replayCounter=0;
   G.engineRunning=false;G.engineRPM=0;G.engineTemp=20;G.thrustN=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;
   initAudio();startEngineSound();startWindNoise();
 }
