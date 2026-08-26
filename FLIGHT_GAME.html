@@ -874,11 +874,8 @@ function handleKeyboard(){
 // QUICK PLAY — Skip design, fly immediately with default aircraft
 // ============================================================
 function quickPlay(){
-  G.wingId='medium';G.airfoilId='naca2412';G.tailId='conventional';G.engineId='piston';
-  G.wingSpanM=10;G.wingAreaM2=16;G.aspectRatio=6.25;
-  G.dryMassKg=800;G.fuelKg=300;G.massKg=1100;
-  G.maxThrustN=4500;G.sfc=0.00015;G.cd0=0.018;
-  G.clAlpha=2*Math.PI;G.clMax=1.65;G.oswaldE=0.85;
+  G.wing='medium';G.airfoil='naca2412';G.tail='conventional';G.engine='turboprop';
+  computePerf(); // sets G.dryMassKg, G.massKg, G.fuelKg from WINGS/ENGINES/AIRFOILS
   G.mission=MISSIONS[0];
   showScreen('flight-screen');resizeCanvas();startFlight();updateHUD();
 }
