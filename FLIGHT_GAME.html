@@ -795,6 +795,10 @@ function stepFlight(dt){
 
   // Control smoothness (track how erratic inputs are)
   G.controlSmoothness+=Math.abs(G.cmdPitch)*dt+Math.abs(G.cmdRoll)*dt;
+  // Contrails above 4000m — spawn from wingtips
+  if(G.alt>4000&&G.airspeedMs>20&&G.engineRunning&&Math.random()<0.3){
+    G.particles.push({x:W*0.5-30+Math.random()*60,y:H*0.5+10,vx:-0.5+Math.random(),vy:0.3+Math.random()*0.3,life:1.5+Math.random(),color:'rgba(255,255,255,0.6)',size:3+Math.random()*4,contrail:true});
+  }
 
   // Sound
   updateEngineSound();
