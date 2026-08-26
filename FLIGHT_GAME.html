@@ -1176,8 +1176,8 @@ function drawScene(){
   }
 
   // Ground — mission environment or altitude-based terrain
-  var env=(G.mission&&ENVIRONMENTS[G.mission.cat])||ENVIRONMENTS.training;
-  var groundGrad=ctx.createLinearGradient(0,groundY,0,H);
+  const env=(G.mission&&ENVIRONMENTS[G.mission.cat])||ENVIRONMENTS.training;
+  const groundGrad=ctx.createLinearGradient(0,groundY,0,H);
   if(G.alt>6000){groundGrad.addColorStop(0,'#7a8a7a');groundGrad.addColorStop(0.3,'#5a6a5a');groundGrad.addColorStop(1,'#3a4a3a')}
   else{groundGrad.addColorStop(0,env.ground1);groundGrad.addColorStop(0.3,env.ground2);groundGrad.addColorStop(1,env.ground3)}
   ctx.fillStyle=groundGrad;ctx.fillRect(0,groundY,W,H-groundY);
