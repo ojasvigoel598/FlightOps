@@ -959,32 +959,59 @@ function drawScene(){
     drawCloud(cx,cy,30+i*10);
   }
 
-  // Ground
+  // Ground — altitude-dependent terrain color
   const groundGrad=ctx.createLinearGradient(0,groundY,0,H);
-  groundGrad.addColorStop(0,'#2d5a27');groundGrad.addColorStop(0.3,'#1a3a14');groundGrad.addColorStop(1,'#0d1f0a');
+  if(G.alt>6000){
+    // Snow/ice at high altitude
+    groundGrad.addColorStop(0,'#7a8a7a');groundGrad.addColorStop(0.3,'#5a6a5a');groundGrad.addColorStop(1,'#3a4a3a');
+  }else if(G.alt>3000){
+    // Rocky/alpine
+    groundGrad.addColorStop(0,'#4a5a3a');groundGrad.addColorStop(0.3,'#3a4a2a');groundGrad.addColorStop(1,'#2a3a1a');
+  }else{
+    groundGrad.addColorStop(0,'#2d5a27');groundGrad.addColorStop(0.3,'#1a3a14');groundGrad.addColorStop(1,'#0d1f0a');
+  }
   ctx.fillStyle=groundGrad;ctx.fillRect(0,groundY,W,H-groundY);
 
-  // Runway (scrolls with position)
-  const rwY=groundY+5;const rwH=18;
+  // Runway — realistic markings
+  const rwY=groundY+5;const rwH=20;
   const rwOffset=(-G.x*0.05)%(W*0.3);
-  ctx.fillStyle='#333';ctx.fillRect(W*0.1+rwOffset,rwY,W*0.8,rwH);
-  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([12,8]);
+  // Asphalt
+  ctx.fillStyle='#3a3a3a';ctx.fillRect(W*0.1+rwOffset,rwY,W*0.8,rwH);
+  // White edge lines
+  ctx.strokeStyle='#ddd';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(W*0.1+rwOffset,rwY+1);ctx.lineTo(W*0.9+rwOffset,rwY+1);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(W*0.1+rwOffset,rwY+rwH-1);ctx.lineTo(W*0.9+rwOffset,rwY+rwH-1);ctx.stroke();
+  // Center dashes
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([16,10]);
   ctx.beginPath();ctx.moveTo(W*0.12+rwOffset,rwY+rwH/2);ctx.lineTo(W*0.88+rwOffset,rwY+rwH/2);ctx.stroke();
   ctx.setLineDash([]);
+  // Threshold markers (start of runway)
+  for(let t=0;t<4;t++){
+    ctx.fillStyle='#fff';
+    ctx.fillRect(W*0.1+rwOffset+8+t*8,rwY+3,4,rwH-6);
+  }
 
-  // Mountains (scroll with position)
+  // Mountains — depth layers
   ctx.fillStyle='#1a2a3a';
   for(let i=0;i<5;i++){
     const mx=(i*W/3-G.x*0.02)%(W+200)-100;
     const mh=40+i*20;
     ctx.beginPath();ctx.moveTo(mx,groundY);ctx.lineTo(mx+mh,groundY-mh);ctx.lineTo(mx+mh*2,groundY);ctx.fill();
   }
+  // Snow caps on taller mountains
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  for(let i=2;i<5;i++){
+    const mx=(i*W/3-G.x*0.02)%(W+200)-100;
+    const mh=40+i*20;
+    ctx.beginPath();ctx.moveTo(mx+mh*0.6,groundY-mh+mh*0.3);ctx.lineTo(mx+mh,groundY-mh);ctx.lineTo(mx+mh*1.4,groundY-mh+mh*0.3);ctx.fill();
+  }
 
-  // Trees
+  // Trees — varied sizes
   ctx.fillStyle='#1a4a1a';
-  for(let i=0;i<12;i++){
-    const tx=(i*W/8-G.x*0.03)%(W+40)-20;
-    ctx.beginPath();ctx.moveTo(tx,groundY+2);ctx.lineTo(tx+6,groundY-12-i*2);ctx.lineTo(tx+12,groundY+2);ctx.fill();
+  for(let i=0;i<16;i++){
+    const tx=(i*W/10-G.x*0.03)%(W+40)-20;
+    const th=8+(i%4)*4;
+    ctx.beginPath();ctx.moveTo(tx,groundY+2);ctx.lineTo(tx+4,groundY-th);ctx.lineTo(tx+8,groundY+2);ctx.fill();
   }
 
   // Wind indicator (when flying)
