@@ -801,6 +801,7 @@ function finishFlight(completed){
   if(!G.flying)return;
   G.flying=false;
   stopEngineSound();
+  stopWindNoise();
   const stats={altitude:G.alt,distance:G.distFlown/1000,maxSpeed:G.maxSpeed,fuelPct:Math.max(0,G.fuelKg/3*100),integrity:G.integrity,landed:completed&&G.integrity>0?1:0};
   let objsMet=0;
   const objResults=[];
@@ -850,7 +851,7 @@ function resetFlight(){
   document.getElementById('result-overlay').style.display='none';
   Object.assign(G,{flying:false,paused:false,x:0,alt:1,z:0,airspeedMs:0,gamma:0,heading:180,theta:0,phi:0,q:0,p:0,beta:0,throttle:0.5,cmdPitch:0,cmdRoll:0,cmdYaw:0,gearDown:true,flapDeg:0,brakeOn:true,engineRunning:false,engineRPM:0,engineTemp:20,thrustN:0,fuelFlowRate:0,aoaDeg:0,cl:0,cd:0,liftN:0,dragN:0,dynamicPressure:0,gLoad:1,totalTime:0,distFlown:0,progress:0,maxSpeed:0,maxAoA:0,maxG:1,minG:1,integrity:100,icingLevel:0,activeEvent:null,eventLog:[],totalFuelUsed:0,controlSmoothness:0,stallWarnings:0});
   G.fuelKg=300;G.massKg=G.dryMassKg+300;
-  stopEngineSound();showScreen('design');
+  stopEngineSound();stopWindNoise();showScreen('design');
 }
 
 // ============================================================
