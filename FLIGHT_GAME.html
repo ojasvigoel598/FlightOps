@@ -1121,6 +1121,13 @@ function drawScene(){
   }
   ctx.globalAlpha=1;
 
+  // Cockpit view: draw crosshair instead of aircraft
+  if(G.cameraView==='cockpit'){
+    ctx.strokeStyle='rgba(255,176,32,0.5)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(W/2-20,H/2);ctx.lineTo(W/2+20,H/2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(W/2,H/2-20);ctx.lineTo(W/2,H/2+20);ctx.stroke();
+    ctx.beginPath();ctx.arc(W/2,H/2,30,0,Math.PI*2);ctx.stroke();
+  }
   ctx.save();
   ctx.translate(acX,acY);
   // Pitch visual: rotate by theta
