@@ -1097,8 +1097,17 @@ function drawScene(){
 
   // Status text
   if(G.paused){
-    ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(W/2-50,groundY+25,100,20);
-    ctx.fillStyle='#fff';ctx.font='12px system-ui';ctx.fillText('⏸ PAUSED',W/2-30,groundY+39);
+    // Full-screen pause overlay
+    ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,0,W,H);
+    // Center box
+    const bx=W/2-120,by=H/2-50,bw=240,bh=100;
+    ctx.fillStyle='rgba(13,27,42,0.95)';ctx.strokeStyle='#FFB020';ctx.lineWidth=2;
+    ctx.beginPath();ctx.roundRect(bx,by,bw,bh,16);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#FFB020';ctx.font='bold 28px system-ui';ctx.textAlign='center';
+    ctx.fillText('⏸ PAUSED',W/2,by+42);
+    ctx.fillStyle='#94A3B8';ctx.font='14px system-ui';
+    ctx.fillText('Press P to resume',W/2,by+70);
+    ctx.textAlign='left';
   }
   if(G.gearDown&&G.alt<10){ctx.fillStyle='#22C55E';ctx.font='10px system-ui';ctx.fillText('GEAR DOWN',10,groundY+35)}
   if(G.flapDeg>0){ctx.fillStyle='#3B82F6';ctx.font='10px system-ui';ctx.fillText(`FLAPS ${G.flapDeg}°`,10,groundY+48)}
