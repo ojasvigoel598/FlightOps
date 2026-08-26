@@ -1081,7 +1081,7 @@ function drawInstruments(){
   const cx=W-70,cy=H-90,r=55;
   ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
   ctx.fillStyle='#1B2838';ctx.fillRect(cx-r,cy-r,r*2,r*2);
-  var pitchPx=G.theta*180/Math.PI*1.5;
+  const pitchPx=G.theta*180/Math.PI*1.5;
   ctx.fillStyle='#3B82F6';ctx.fillRect(cx-r,cy-r+pitchPx,r*2,r);
   ctx.fillStyle='#6B4226';ctx.fillRect(cx-r,cy+pitchPx,r*2,r);
   ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx-r,cy+pitchPx);ctx.lineTo(cx+r,cy+pitchPx);ctx.stroke();
