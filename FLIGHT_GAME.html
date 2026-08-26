@@ -1127,7 +1127,7 @@ function drawInstruments(){
   ctx.fillStyle='#E2E8F0';ctx.font='10px monospace';ctx.textAlign='center';
   ctx.fillText(G.alt.toFixed(0)+'m',ax,ay-8);ctx.textAlign='left';
   // AoA arc (top left)
-  var aoX=60,aoY=100,aoR=35;
+  const aoX=60,aoY=100,aoR=35;
   ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=4;
   ctx.beginPath();ctx.arc(aoX,aoY,aoR,-Math.PI*0.75,-Math.PI*0.25);ctx.stroke();
   var aoaNorm=clamp((G.aoaDeg+10)/30,0,1);
