@@ -746,6 +746,15 @@ function stepFlight(dt){
   G.minG=Math.min(G.minG,G.gLoad);
   G.maxAoA=Math.max(G.maxAoA,Math.abs(G.aoaDeg));
 
+  // Audio warnings — stall and gear
+  if(!G._stallBeepTime)G._stallBeepTime=0;
+  if(!G._gearBeepTime)G._gearBeepTime=0;
+  G._stallBeepTime+=dt;G._gearBeepTime+=dt;
+  // Stall warning: repetitive beeps when AoA > 14 degrees
+  if(Math.abs(G.aoaDeg)>14&&G._stallBeepTime>0.4){playBeep(880,0.15);G._stallBeepTime=0}
+  // Gear warning: descending below 100m with gear up
+  if(G.alt<100&&!G.gearDown&&G.gamma<0&&G._gearBeepTime>0.6){playBeep(440,0.2);setTimeout(()=>playBeep(330,0.2),250);G._gearBeepTime=0}
+
   // --- 17. EVENT EFFECTS ---
   if(G.activeEvent){
     G.integrity=Math.max(0,G.integrity-G.activeEvent.severity*0.08*dt);
