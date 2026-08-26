@@ -1070,7 +1070,7 @@ function startFlight(){
   G.fuelKg=300;G.massKg=G.dryMassKg+300;
   G.totalTime=0;G.distFlown=0;G.progress=0;
   G.integrity=100;G.icingLevel=0;G.maxSpeed=0;G.maxAoA=0;G.maxG=1;G.minG=1;
-  G.activeEvent=null;G.eventLog=[];G.totalFuelUsed=0;G.controlSmoothness=0;G.stallWarnings=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;G.replay=[];G._replayCounter=0;
+  G.activeEvent=null;G.eventLog=[];G.totalFuelUsed=0;G.controlSmoothness=0;G.stallWarnings=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;G.replay=[];G._replayCounter=0;G.briefingTime=0;G.controlHintTime=0;
   G.engineRunning=false;G.engineRPM=0;G.engineTemp=20;G.thrustN=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;
   initAudio();startEngineSound();startWindNoise();
 }
@@ -1414,6 +1414,20 @@ function drawScene(){
   // Camera view label
   if(G.flying){const camLabels={side:'SIDE VIEW',cockpit:'COCKPIT',chase:'CHASE CAM'};ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fillRect(W-110,10,100,20);ctx.fillStyle='#94A3B8';ctx.font='10px monospace';ctx.textAlign='right';ctx.fillText(camLabels[G.cameraView]||'',W-15,24);ctx.textAlign='left'}
   // Control hints — fade out after 5 seconds
+  // Mission briefing — shows for 4 seconds on flight start
+  if(G.flying&&G.briefingTime<4&&G.mission){
+    var ba=Math.max(0,1-G.briefingTime/4);
+    ctx.fillStyle='rgba(13,27,42,'+(ba*0.95)+')';ctx.fillRect(W/2-160,H/2-80,320,160);
+    ctx.strokeStyle='rgba(255,176,32,'+ba+')';ctx.lineWidth=2;ctx.strokeRect(W/2-160,H/2-80,320,160);
+    ctx.fillStyle='rgba(255,176,32,'+ba+')';ctx.font='bold 18px system-ui';ctx.textAlign='center';
+    ctx.fillText(G.mission.icon+' '+G.mission.name,W/2,H/2-50);
+    ctx.fillStyle='rgba(226,232,240,'+ba+')';ctx.font='13px system-ui';
+    G.mission.objectives.forEach(function(o,i){ctx.fillText('• '+o.text,W/2,H/2-20+i*20)});
+    ctx.fillStyle='rgba(148,163,184,'+ba+')';ctx.font='11px system-ui';
+    ctx.fillText('Briefing ends in '+(4-G.briefingTime).toFixed(0)+'s...',W/2,H/2+60);
+    ctx.textAlign='left';
+    G.briefingTime+=1/60;
+  }
   if(G.flying&&G.controlHintTime<5){
     var alpha=Math.max(0,1-G.controlHintTime/5);
     ctx.fillStyle='rgba(13,27,42,'+(alpha*0.85)+')';ctx.fillRect(W/2-140,H/2+60,280,60);
