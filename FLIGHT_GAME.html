@@ -124,6 +124,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="hud" id="hud"></div>
     <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     <div id="event-banner"></div>
+    <div id="ignition-prompt" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(13,27,42,0.9);border:2px solid #FFB020;border-radius:12px;padding:16px 24px;color:#FFB020;font-size:18px;font-weight:700;text-align:center;z-index:25;display:none"></div>
     <button class="xray-toggle" id="xray-toggle" onclick="G.xray=!G.xray;this.classList.toggle('active')">🔬 Engineering X-Ray</button>
     <div class="key-hints" id="key-hints">
       <div class="key-hint"><kbd>W</kbd><kbd>S</kbd> Throttle</div>
@@ -532,7 +533,7 @@ function stepFlight(dt){
   G.engineTemp=clamp(G.engineTemp,15,300);
 
   // Engine state
-  if(!G.engineRunning&&G.throttle>0.05&&!G.brakeOn)G.engineRunning=true;
+  // Engine starts via I key (ignition) — not auto-start
 
   // --- 8. FUEL BURN → MASS CHANGE ---
   // Fuel flow = fuelBurnRate * thrust * dt (proportional to thrust produced)
@@ -825,6 +826,9 @@ function updateHUD(){
   document.getElementById('roll-val').textContent=G.cmdRoll>0.01?'→':G.cmdRoll<-0.01?'←':'—';
   document.getElementById('yaw-ind').style.left=`${50+G.cmdYaw*45}%`;
   document.getElementById('yaw-val').textContent=G.cmdYaw>0.01?'→':G.cmdYaw<-0.01?'←':'—';
+  // Engine ignition prompt
+  const eng=document.getElementById('ignition-prompt');
+  if(G.flying&&!G.engineRunning){eng.style.display='block';eng.innerHTML='🔑 Press <kbd>I</kbd> to start engine'}else{eng.style.display='none'}
   const lb=document.getElementById('launch-btn');
   if(G.flying){lb.textContent='✈️ Flying...';lb.disabled=true}else{lb.textContent='🛫 Launch Flight Test';lb.disabled=false}
 }
@@ -847,6 +851,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='g'||e.key==='G')G.gearDown=!G.gearDown;
   if(e.key==='f'||e.key==='F')G.flapDeg=G.flapDeg>=30?0:G.flapDeg+10;
   if(e.key==='b'||e.key==='B')G.brakeOn=!G.brakeOn;
+  if((e.key==='i'||e.key==='I')&&!G.engineRunning&&G.flying){G.engineRunning=true;startEngineSound();playBeep(440,0.2);setTimeout(()=>playBeep(660,0.15),200)}
 });
 document.addEventListener('keyup',e=>{keys[e.key]=false});
 
