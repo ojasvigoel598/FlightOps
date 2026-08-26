@@ -928,7 +928,7 @@ function drawReplay(){
   var maxA=Math.max.apply(null,G.replay.map(function(r){return r.alt}));
   const rangeX=maxX-minX||1;
   rctx.strokeStyle='#4ADE80';rctx.lineWidth=2;rctx.beginPath();
-  for(var i=0;i<G.replay.length;i++){
+  for(let i=0;i<G.replay.length;i++){
     var rx=10+(G.replay[i].x-minX)/rangeX*(w-20);
     var ry=h-10-(G.replay[i].alt/Math.max(maxA,1))*(h-20);
     if(i===0)rctx.moveTo(rx,ry);else rctx.lineTo(rx,ry);
