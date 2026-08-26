@@ -324,6 +324,7 @@ function playBeep(f,d){if(!audioCtx)initAudio();const o=audioCtx.createOscillato
 let windNoise=null,windGain=null;
 function startWindNoise(){if(!audioCtx||windNoise)return;windNoise=audioCtx.createOscillator();windGain=audioCtx.createGain();const bufSize=audioCtx.sampleRate*2;const buf=audioCtx.createBuffer(1,bufSize,audioCtx.sampleRate);const data=buf.getChannelData(0);for(let i=0;i<bufSize;i++)data[i]=(Math.random()*2-1);const src=audioCtx.createBufferSource();src.buffer=buf;src.loop=true;const filter=audioCtx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=800;windGain.gain.value=0;src.connect(filter);filter.connect(windGain);windGain.connect(masterGain);src.start();windNoise=src}
 function updateWindNoise(){if(!windGain)return;const v=clamp(G.airspeedMs/150,0,0.08);windGain.gain.value+=((v-windGain.gain.value)*0.1)}
+function stopWindNoise(){if(windNoise){try{windNoise.stop()}catch(e){}windNoise=null;windGain=null}}
 
 // ============================================================
 // SCREEN NAV
