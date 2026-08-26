@@ -928,6 +928,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='g'||e.key==='G')G.gearDown=!G.gearDown;
   if(e.key==='f'||e.key==='F')G.flapDeg=G.flapDeg>=30?0:G.flapDeg+10;
   if(e.key==='b'||e.key==='B')G.brakeOn=!G.brakeOn;
+  if(e.key==='c'||e.key==='C'){const views=['side','cockpit','chase'];G.cameraView=views[(views.indexOf(G.cameraView)+1)%3]}
   if((e.key==='i'||e.key==='I')&&!G.engineRunning&&G.flying){G.engineRunning=true;startEngineSound();playBeep(440,0.2);setTimeout(()=>playBeep(660,0.15),200)}
 });
 document.addEventListener('keyup',e=>{keys[e.key]=false});
