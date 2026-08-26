@@ -105,6 +105,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <h1>FlightOps</h1>
     <p class="subtitle">Design your aircraft, pick a mission, and fly with real aerospace physics. Every control surface affects aerodynamics. Every engineering decision matters.</p>
     <button class="menu-btn" onclick="quickPlay()" style="background:linear-gradient(135deg,#FFB020,#F59E0B);font-size:22px;padding:18px 56px">🚀 Quick Play</button>
+    <button class="menu-btn secondary" id="resume-btn" style="display:none;background:var(--accent);color:#000" onclick="resumeFlight()">▶ Resume Flight</button>
     <button class="menu-btn secondary" onclick="showScreen('design')">🎮 Design Aircraft</button>
     <div class="how-to-play" style="margin-top:20px;text-align:left;max-width:400px">
       <div style="color:var(--primary);font-weight:700;margin-bottom:8px">How to Play:</div>
@@ -367,7 +368,7 @@ function playLandingThud(intensity){if(!audioCtx)initAudio();const o=audioCtx.cr
 // ============================================================
 // SCREEN NAV
 // ============================================================
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='menu'){const cd=document.getElementById('credits-display');if(cd)cd.textContent=G.credits>0?'⭐ '+G.credits+' credits earned':''}if(id==='design')renderDesign();if(id==='flight-screen'){resizeCanvas();updateHUD()}}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='menu'){const cd=document.getElementById('credits-display');if(cd)cd.textContent=G.credits>0?'⭐ '+G.credits+' credits earned':'';var rb=document.getElementById('resume-btn');if(rb){var hasSaved=false;try{hasSaved=!!localStorage.getItem('flightops_flight')}catch(e){}rb.style.display=hasSaved?'block':'none'}}if(id==='design')renderDesign();if(id==='flight-screen'){resizeCanvas();updateHUD()}}
 
 // ============================================================
 // DESIGN SCREEN
@@ -1007,7 +1008,7 @@ function adj(axis,delta){
 const keys={};
 document.addEventListener('keydown',e=>{
   keys[e.key]=true;
-  if(e.key==='p'||e.key==='P')G.paused=!G.paused;
+  if(e.key==='p'||e.key==='P'){G.paused=!G.paused;if(G.paused&&G.flying)saveFlightState()}
   if(e.key==='x'||e.key==='X')G.xray=!G.xray;
   if(!G.flying)return;
   if(e.key==='g'||e.key==='G')G.gearDown=!G.gearDown;
@@ -1041,6 +1042,13 @@ function handleKeyboard(){
 // ============================================================
 // QUICK PLAY — Skip design, fly immediately with default aircraft
 // ============================================================
+function resumeFlight(){
+  if(!loadFlightState())return;
+  G.flying=true;G.paused=false;
+  showScreen('flight-screen');resizeCanvas();
+  initAudio();startEngineSound();startWindNoise();
+  updateHUD();
+}
 function quickPlay(){
   G.wing='medium';G.airfoil='naca2412';G.tail='conventional';G.engine='turboprop';
   computePerf(); // sets G.dryMassKg, G.massKg, G.fuelKg from WINGS/ENGINES/AIRFOILS
