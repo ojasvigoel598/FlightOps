@@ -1102,8 +1102,8 @@ function drawInstruments(){
   ctx.strokeStyle='#FFB020';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ccx,ccy,cr,0,Math.PI*2);ctx.stroke();
   ctx.fillStyle='#94A3B8';ctx.font='8px monospace';ctx.textAlign='center';ctx.fillText('HDG '+G.heading.toFixed(0)+'\u00b0',ccx,ccy+cr+12);ctx.textAlign='left';
   const vx=cx+80,vy=cy,vh=60;
-  var vs=G.airspeedMs*Math.sin(G.gamma);
-  var vsNorm=clamp(vs/20,-1,1);
+  const vs=G.airspeedMs*Math.sin(G.gamma);
+  const vsNorm=clamp(vs/20,-1,1);
   ctx.fillStyle='#0D1B2A';ctx.fillRect(vx-8,vy-vh,16,vh*2);
   ctx.strokeStyle='#FFB020';ctx.lineWidth=1;ctx.strokeRect(vx-8,vy-vh,16,vh*2);
   ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.beginPath();ctx.moveTo(vx-6,vy);ctx.lineTo(vx+6,vy);ctx.stroke();
