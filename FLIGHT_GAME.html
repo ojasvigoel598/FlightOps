@@ -259,9 +259,9 @@ function loadProgress(){
   }catch(e){}
   G.credits=0;G.completedMissions=[];G.highScores={};
 }
-function saveProgress(){
-  try{localStorage.setItem('flightops_progress',JSON.stringify({credits:G.credits,completedMissions:G.completedMissions,highScores:G.highScores}))}catch(e){}
-}
+function saveProgress(){try{localStorage.setItem('flightops_progress',JSON.stringify({credits:G.credits,completedMissions:G.completedMissions,highScores:G.highScores}))}catch(e){}}
+function saveFlightState(){var s={};['x','alt','z','airspeedMs','gamma','heading','theta','phi','q','p','beta','massKg','fuelKg','throttle','cmdPitch','cmdRoll','cmdYaw','gearDown','flapDeg','brakeOn','wing','airfoil','tail','engine','mission','totalTime','distFlown','integrity','engineRunning','engineRPM','engineTemp','replay','_replayCounter'].forEach(function(k){s[k]=G[k]});try{localStorage.setItem('flightops_flight',JSON.stringify(s))}catch(e){}}
+function loadFlightState(){try{var s=JSON.parse(localStorage.getItem('flightops_flight'));if(s){Object.keys(s).forEach(function(k){G[k]=s[k]});return true}}catch(e){}return false}
 
 // ============================================================
 // GAME STATE — Single authoritative simulation state
