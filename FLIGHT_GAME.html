@@ -920,7 +920,7 @@ function finishFlight(completed){
 }
 
 function drawReplay(){
-  var rc=document.getElementById('replay-canvas');if(!rc||G.replay.length<2)return;
+  const rc=document.getElementById('replay-canvas');if(!rc||G.replay.length<2)return;
   var rctx=rc.getContext('2d');var w=rc.width,h=rc.height;
   rctx.fillStyle='#0D1B2A';rctx.fillRect(0,0,w,h);
   var minX=Math.min.apply(null,G.replay.map(function(r){return r.x}));
