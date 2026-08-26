@@ -1130,8 +1130,8 @@ function drawInstruments(){
   const aoX=60,aoY=100,aoR=35;
   ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=4;
   ctx.beginPath();ctx.arc(aoX,aoY,aoR,-Math.PI*0.75,-Math.PI*0.25);ctx.stroke();
-  var aoaNorm=clamp((G.aoaDeg+10)/30,0,1);
-  var aoaAngle=-Math.PI*0.75+aoaNorm*Math.PI*0.5;
+  const aoaNorm=clamp((G.aoaDeg+10)/30,0,1);
+  const aoaAngle=-Math.PI*0.75+aoaNorm*Math.PI*0.5;
   ctx.strokeStyle=Math.abs(G.aoaDeg)>14?'#EF4444':'#FFB020';ctx.lineWidth=4;
   ctx.beginPath();ctx.arc(aoX,aoY,aoR,-Math.PI*0.75,aoaAngle);ctx.stroke();
   ctx.fillStyle='#E2E8F0';ctx.font='10px monospace';ctx.textAlign='center';
