@@ -1160,8 +1160,9 @@ function drawScene(){
   skyGrad.addColorStop(1,'rgb('+Math.round(176-80*altF)+','+Math.round(212-60*altF)+','+Math.round(241-40*altF)+')');
   ctx.fillStyle=skyGrad;ctx.fillRect(0,0,W,groundY);
 
-  // Stars above 5000m — density increases with altitude
-  if(G.alt>5000){
+  // Stars — always visible in night mode, above 5000m otherwise
+  var isNight=G.mission&&ENVIRONMENTS[G.mission.cat]&&ENVIRONMENTS[G.mission.cat].isNight;
+  if(G.alt>5000||isNight){
     const starCount=Math.floor(altF*80);
     ctx.fillStyle='rgba(255,255,255,'+Math.min(0.9,altF*1.2)+')';
     for(let i=0;i<starCount;i++){
@@ -1187,6 +1188,11 @@ function drawScene(){
   else{groundGrad.addColorStop(0,env.ground1);groundGrad.addColorStop(0.3,env.ground2);groundGrad.addColorStop(1,env.ground3)}
   ctx.fillStyle=groundGrad;ctx.fillRect(0,groundY,W,H-groundY);
 
+  // City lights (night mode)
+  if(isNight){
+    ctx.fillStyle='rgba(255,200,100,0.6)';
+    for(var li=0;li<30;li++){var lx=(li*W/12-G.x*0.015)%(W+40)-20;ctx.fillRect(lx,groundY+8+li%3*4,2,2)}
+  }
   // Runway — realistic markings
   const rwY=groundY+5;const rwH=20;
   const rwOffset=(-G.x*0.05)%(W*0.3);
