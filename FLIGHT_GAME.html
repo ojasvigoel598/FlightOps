@@ -1098,10 +1098,12 @@ function drawScene(){
   }
 
   // --- AIRCRAFT ---
-  const acX=W*0.5;
+  let acX=W*0.5,acY,acScale;
   const altFactor=G.alt/5000;
-  const acY=clamp(groundY-30-altFactor*(groundY-60),40,groundY-20);
-  const scale=0.7+altFactor*0.5;
+  if(G.cameraView==='cockpit'){acX=W*0.5;acY=H*0.5;acScale=2.5}
+  else if(G.cameraView==='chase'){acX=W*0.35;acY=clamp(groundY-30-altFactor*(groundY-60),60,groundY-30);acScale=0.5+altFactor*0.3}
+  else{acX=W*0.5;acY=clamp(groundY-30-altFactor*(groundY-60),40,groundY-20);acScale=0.7+altFactor*0.5}
+  const scale=acScale;
 
   // Screen shake
   if(G.shakeDur>0){G.shakeDur-=1/60;G.shakeX=(Math.random()-0.5)*G.shakeDur*40;G.shakeY=(Math.random()-0.5)*G.shakeDur*30}else{G.shakeX=0;G.shakeY=0}
