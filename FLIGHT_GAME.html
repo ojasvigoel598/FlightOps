@@ -1417,7 +1417,7 @@ function drawScene(){
   // Control hints — fade out after 5 seconds
   // Mission briefing — shows for 4 seconds on flight start
   if(G.flying&&G.briefingTime<4&&G.mission){
-    var ba=Math.max(0,1-G.briefingTime/4);
+    const ba=Math.max(0,1-G.briefingTime/4);
     ctx.fillStyle='rgba(13,27,42,'+(ba*0.95)+')';ctx.fillRect(W/2-160,H/2-80,320,160);
     ctx.strokeStyle='rgba(255,176,32,'+ba+')';ctx.lineWidth=2;ctx.strokeRect(W/2-160,H/2-80,320,160);
     ctx.fillStyle='rgba(255,176,32,'+ba+')';ctx.font='bold 18px system-ui';ctx.textAlign='center';
