@@ -436,6 +436,16 @@ function computePerf(){
 // FLIGHT PHYSICS — REBUILT WITH ANGULAR DYNAMICS
 // ============================================================
 
+function clampState(){
+  G.alt=Math.max(0,G.alt);G.airspeedMs=Math.max(0,Math.min(300,G.airspeedMs));
+  G.heading=((G.heading%360)+360)%360;G.theta=clamp(G.theta,-1.2,1.2);
+  G.phi=clamp(G.phi,-1.5,1.5);G.q=clamp(G.q,-5,5);G.p=clamp(G.p,-8,8);
+  G.throttle=clamp(G.throttle,0,1);G.massKg=Math.max(500,G.massKg);
+  G.fuelKg=Math.max(0,G.fuelKg);G.integrity=clamp(G.integrity,0,100);
+  if(isNaN(G.airspeedMs))G.airspeedMs=0;if(isNaN(G.alt))G.alt=1;
+  if(isNaN(G.gamma))G.gamma=0;if(isNaN(G.theta))G.theta=0;
+  if(isNaN(G.phi))G.phi=0;if(isNaN(G.heading))G.heading=180;
+}
 function stepFlight(dt){
   if(!G.flying||G.paused)return;
   const w=WINGS[G.wing]||WINGS.medium;
@@ -832,6 +842,8 @@ function stepFlight(dt){
     G.particles.push({x:W*0.5-30+Math.random()*60,y:H*0.5+10,vx:-0.5+Math.random(),vy:0.3+Math.random()*0.3,life:1.5+Math.random(),color:'rgba(255,255,255,0.6)',size:3+Math.random()*4,contrail:true});
   }
 
+  // Safety bounds
+  clampState();
   // Sound
   updateEngineSound();
   updateWindNoise();
