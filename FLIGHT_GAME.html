@@ -1155,7 +1155,7 @@ function drawScene(){
   ctx.fillStyle=skyGrad;ctx.fillRect(0,0,W,groundY);
 
   // Stars — always visible in night mode, above 5000m otherwise
-  var isNight=G.mission&&ENVIRONMENTS[G.mission.cat]&&ENVIRONMENTS[G.mission.cat].isNight;
+  const isNight=G.mission&&ENVIRONMENTS[G.mission.cat]&&ENVIRONMENTS[G.mission.cat].isNight;
   if(G.alt>5000||isNight){
     const starCount=Math.floor(altF*80);
     ctx.fillStyle='rgba(255,255,255,'+Math.min(0.9,altF*1.2)+')';
