@@ -727,6 +727,9 @@ function stepFlight(dt){
         G.shakeDur=0.8;
       }
       G.gamma=Math.max(0,G.gamma);
+      // Landing thud — always plays on touchdown
+      const sinkForThud=-G.airspeedMs*Math.sin(G.gamma);
+      if(sinkForThud>0.5)playLandingThud(sinkForThud);
     }
     G.phi*=0.95; // roll to level on ground
     G.q*=0.9;
