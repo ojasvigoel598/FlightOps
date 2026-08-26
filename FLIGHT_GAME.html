@@ -1078,7 +1078,7 @@ const ctx=canvas.getContext('2d');
 function resizeCanvas(){canvas.width=canvas.parentElement.clientWidth;canvas.height=canvas.parentElement.clientHeight}
 
 function drawInstruments(){
-  var cx=W-70,cy=H-90,r=55;
+  const cx=W-70,cy=H-90,r=55;
   ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
   ctx.fillStyle='#1B2838';ctx.fillRect(cx-r,cy-r,r*2,r*2);
   var pitchPx=G.theta*180/Math.PI*1.5;
