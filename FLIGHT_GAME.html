@@ -283,6 +283,8 @@ let G={
   totalFuelUsed:0,
   controlSmoothness:0,
   stallWarnings:0,
+  // Visual effects
+  particles:[],shakeX:0,shakeY:0,shakeDur:0,
   // UI
   xray:false,
   perf:{cruiseMs:0,rangeKm:0,maxLd:0,climbMs:0,stallMs:0},
@@ -668,10 +670,22 @@ function stepFlight(dt){
       if(sinkRate>3){
         G.integrity=Math.max(0,G.integrity-(sinkRate-3)*5);
         playBeep(200,0.2);
+        // Spawn impact particles
+        for(let i=0;i<Math.min(20,(sinkRate-3)*3);i++){
+          G.particles.push({x:W*0.5+Math.random()*40-20,y:H*0.63,vx:(Math.random()-0.5)*8,vy:-Math.random()*6-2,life:0.5+Math.random()*0.5,color:sinkRate>6?'#FF6B35':'#94A3B8',size:2+Math.random()*4});
+        }
+        G.shakeDur=Math.min(0.5,(sinkRate-3)*0.06);
       }
       if(sinkRate>8){
         G.integrity=Math.max(0,G.integrity-50);
         playBeep(100,0.5);
+        // Crash explosion
+        for(let i=0;i<40;i++){
+          const angle=Math.random()*Math.PI*2;
+          const speed=3+Math.random()*10;
+          G.particles.push({x:W*0.5,y:H*0.63,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-4,life:0.8+Math.random()*0.8,color:['#FF6B35','#FFB020','#EF4444','#FF4500'][Math.floor(Math.random()*4)],size:3+Math.random()*6});
+        }
+        G.shakeDur=0.8;
       }
       G.gamma=Math.max(0,G.gamma);
     }
@@ -898,7 +912,7 @@ function startFlight(){
   G.totalTime=0;G.distFlown=0;G.progress=0;
   G.integrity=100;G.icingLevel=0;G.maxSpeed=0;G.maxAoA=0;G.maxG=1;G.minG=1;
   G.activeEvent=null;G.eventLog=[];G.totalFuelUsed=0;G.controlSmoothness=0;G.stallWarnings=0;
-  G.engineRunning=false;G.engineRPM=0;G.engineTemp=20;G.thrustN=0;
+  G.engineRunning=false;G.engineRPM=0;G.engineTemp=20;G.thrustN=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;
   initAudio();startEngineSound();
 }
 
@@ -980,6 +994,22 @@ function drawScene(){
   const altFactor=G.alt/5000;
   const acY=clamp(groundY-30-altFactor*(groundY-60),40,groundY-20);
   const scale=0.7+altFactor*0.5;
+
+  // Screen shake
+  if(G.shakeDur>0){G.shakeDur-=1/60;G.shakeX=(Math.random()-0.5)*G.shakeDur*40;G.shakeY=(Math.random()-0.5)*G.shakeDur*30}else{G.shakeX=0;G.shakeY=0}
+  ctx.save();
+  ctx.translate(G.shakeX,G.shakeY);
+
+  // Update and draw particles
+  for(let i=G.particles.length-1;i>=0;i--){
+    const p=G.particles[i];
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.3;p.life-=1/60;
+    if(p.life<=0){G.particles.splice(i,1);continue}
+    ctx.globalAlpha=Math.min(1,p.life*2);
+    ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
 
   ctx.save();
   ctx.translate(acX,acY);
