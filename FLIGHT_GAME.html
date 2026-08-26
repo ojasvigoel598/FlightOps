@@ -1331,6 +1331,7 @@ function gameLoop(ts){
 
   if(G.flying){
     drawScene();
+    if(G.cameraView==='cockpit')drawInstruments();
     updateHUD();
   }
 
