@@ -211,6 +211,17 @@ const AIRFOILS={
 };
 
 // ---- MISSIONS ----
+var TUTORIAL_STEPS=[
+  {title:'Welcome to FlightOps!',text:'You are about to fly a real aircraft with real aerodynamics. This tutorial will guide you through your first flight.',condition:function(){return true}},
+  {title:'Engine Start',text:'Press I to start the engine. You will hear it spool up.',condition:function(){return G.engineRunning}},
+  {title:'Release Brake',text:'Press B to release the parking brake. You need this off to move.',condition:function(){return !G.brakeOn}},
+  {title:'Throttle Up',text:'Press W to increase throttle to 100%. The aircraft will start rolling.',condition:function(){return G.throttle>0.8}},
+  {title:'Takeoff!',text:'At 60+ km/h, press and hold the up arrow (↑) to pitch up and lift off.',condition:function(){return G.alt>50}},
+  {title:'Climb',text:'Keep climbing! Use ↑/↓ to control pitch. Watch your AoA stays below 12°.',condition:function(){return G.alt>200}},
+  {title:'Cruise',text:'You are flying! Use ←/→ to roll and turn. A/D for rudder. Great job!',condition:function(){return G.alt>100&&G.airspeedMs>30}},
+  {title:'Landing',text:'When ready, reduce throttle (S), deploy gear (G) and flaps (F), and gently descend.',condition:function(){return false}},
+];
+
 const MISSIONS=[
   {id:'first-flight',name:'First Flight',icon:'🎓',desc:'Your very first flight! Take off, reach 500m, land safely.',cat:'training',diff:1,credit:500,hint:'Use medium wings and a piston engine. Rotate at 60 km/h.',objectives:[{text:'Reach 500 m altitude',param:'altitude',cmp:'>=',val:500,unit:'m'},{text:'Fly 5 km',param:'distance',cmp:'>=',val:5,unit:'km'},{text:'Land safely',param:'landed',cmp:'==',val:1,unit:''}],env:{windMs:3,windDir:270,turbulence:0.1,events:[]}},
   {id:'circuit',name:'Circuit Training',icon:'🔄',desc:'Fly a traffic pattern: take off, circle, and land back.',cat:'training',diff:1,credit:600,hint:'Keep AoA below 12° to avoid stall.',objectives:[{text:'Climb to 300 m',param:'altitude',cmp:'>=',val:300,unit:'m'},{text:'Fly 8 km total',param:'distance',cmp:'>=',val:8,unit:'km'},{text:'Land on runway',param:'landed',cmp:'==',val:1,unit:''}],env:{windMs:5,windDir:180,turbulence:0.15,events:[]}},
