@@ -321,6 +321,8 @@ function startEngineSound(){if(!audioCtx)initAudio();if(engineOsc)return;engineO
 function updateEngineSound(){if(!engineOsc)return;const rpm=G.engineRPM;engineOsc.frequency.value=60+rpm*250+G.airspeedMs*0.3;if(engineOsc2)engineOsc2.frequency.value=30+rpm*120}
 function stopEngineSound(){try{if(engineOsc){engineOsc.stop();engineOsc=null}if(engineOsc2){engineOsc2.stop();engineOsc2=null}}catch(e){}}
 function playBeep(f,d){if(!audioCtx)initAudio();const o=audioCtx.createOscillator();const g=audioCtx.createGain();o.frequency.value=f;g.gain.value=0.1;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d);o.connect(g);g.connect(masterGain);o.start();o.stop(audioCtx.currentTime+d)}
+let windNoise=null,windGain=null;
+function startWindNoise(){if(!audioCtx||windNoise)return;windNoise=audioCtx.createOscillator();windGain=audioCtx.createGain();const bufSize=audioCtx.sampleRate*2;const buf=audioCtx.createBuffer(1,bufSize,audioCtx.sampleRate);const data=buf.getChannelData(0);for(let i=0;i<bufSize;i++)data[i]=(Math.random()*2-1);const src=audioCtx.createBufferSource();src.buffer=buf;src.loop=true;const filter=audioCtx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=800;windGain.gain.value=0;src.connect(filter);filter.connect(windGain);windGain.connect(masterGain);src.start();windNoise=src}
 
 // ============================================================
 // SCREEN NAV
