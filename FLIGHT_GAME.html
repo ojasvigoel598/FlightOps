@@ -1342,6 +1342,18 @@ function drawScene(){
   }
   // Camera view label
   if(G.flying){const camLabels={side:'SIDE VIEW',cockpit:'COCKPIT',chase:'CHASE CAM'};ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fillRect(W-110,10,100,20);ctx.fillStyle='#94A3B8';ctx.font='10px monospace';ctx.textAlign='right';ctx.fillText(camLabels[G.cameraView]||'',W-15,24);ctx.textAlign='left'}
+  // Tutorial overlay
+  if(G.tutorialActive&&G.tutorialStep<TUTORIAL_STEPS.length){
+    var step=TUTORIAL_STEPS[G.tutorialStep];
+    ctx.fillStyle='rgba(13,27,42,0.92)';ctx.strokeStyle='#FFB020';ctx.lineWidth=2;
+    var tw=340,th=90,tx=W/2-tw/2,ty=30;
+    ctx.beginPath();ctx.roundRect(tx,ty,tw,th,10);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#FFB020';ctx.font='bold 14px system-ui';ctx.fillText(step.title,tx+12,ty+22);
+    ctx.fillStyle='#E2E8F0';ctx.font='12px system-ui';ctx.fillText(step.text,tx+12,ty+44);
+    ctx.fillStyle='#94A3B8';ctx.font='10px system-ui';ctx.fillText('Step '+(G.tutorialStep+1)+'/'+TUTORIAL_STEPS.length+' | Tap to skip',tx+12,ty+72);
+    ctx.textAlign='left';
+    if(step.condition()){G.tutorialStep++}
+  }
   if(G.gearDown&&G.alt<10){ctx.fillStyle='#22C55E';ctx.font='10px system-ui';ctx.fillText('GEAR DOWN',10,groundY+35)}
   if(G.flapDeg>0){ctx.fillStyle='#3B82F6';ctx.font='10px system-ui';ctx.fillText(`FLAPS ${G.flapDeg}°`,10,groundY+48)}
   if(G.brakeOn&&G.alt<2){ctx.fillStyle='#EF4444';ctx.font='10px system-ui';ctx.fillText('BRAKE',10,groundY+61)}
