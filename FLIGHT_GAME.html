@@ -534,6 +534,18 @@ function stepFlight(dt){
   G.engineTemp+=(e.tempGain*G.engineRPM-G.engineTemp*0.005-(G.airspeedMs*0.001))*dt;
   G.engineTemp=clamp(G.engineTemp,15,300);
 
+  // Engine failure from overheating
+  if(G.engineTemp>250&&G.engineRunning&&Math.random()<0.02*dt*60){
+    G.engineRunning=false;G.engineRPM*=0.5;
+    G.activeEvent={type:'engine_failure',desc:'ENGINE OVERHEATING — FAILURE!',severity:5,timeLeft:15};
+    playBeep(200,0.8);setTimeout(()=>playBeep(150,0.6),300);
+  }
+  // Engine fire warning at extreme temps
+  if(G.engineTemp>280&&G.engineRunning){
+    G.activeEvent={type:'engine_fire',desc:'ENGINE FIRE!',severity:5,timeLeft:10};
+    G.integrity=Math.max(0,G.integrity-0.5*dt);
+  }
+
   // Engine state
   // Engine starts via I key (ignition) — not auto-start
 
@@ -547,7 +559,12 @@ function stepFlight(dt){
     G.totalFuelUsed+=fuelBurn;
     // MASS CHANGES — this is the critical fix
     G.massKg=G.dryMassKg+G.fuelKg+(G.engine==='electric'?0:0); // electric battery doesn't lose mass
-    if(G.fuelKg<=0){G.engineRunning=false;G.engineRPM*=0.95}
+    if(G.fuelKg<=0){G.engineRunning=false;G.engineRPM*=0.95;
+      if(!G.eventLog.includes('fuel_exhausted')){
+        G.activeEvent={type:'fuel_exhausted',desc:'FUEL EXHAUSTED — Engine stopping!',severity:5,timeLeft:10};
+        G.eventLog.push('fuel_exhausted');playBeep(300,1);setTimeout(()=>playBeep(200,0.8),400);
+      }
+    }
   }
   // Icing decay
   if(G.icingLevel>0&&(!G.activeEvent||G.activeEvent.type!=='icing'))G.icingLevel=Math.max(0,G.icingLevel-0.01*dt);
