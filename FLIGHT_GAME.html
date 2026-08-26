@@ -1379,6 +1379,16 @@ function drawScene(){
   }
   // Camera view label
   if(G.flying){const camLabels={side:'SIDE VIEW',cockpit:'COCKPIT',chase:'CHASE CAM'};ctx.fillStyle='rgba(0,0,0,0.4)';ctx.fillRect(W-110,10,100,20);ctx.fillStyle='#94A3B8';ctx.font='10px monospace';ctx.textAlign='right';ctx.fillText(camLabels[G.cameraView]||'',W-15,24);ctx.textAlign='left'}
+  // Control hints — fade out after 5 seconds
+  if(G.flying&&G.controlHintTime<5){
+    var alpha=Math.max(0,1-G.controlHintTime/5);
+    ctx.fillStyle='rgba(13,27,42,'+(alpha*0.85)+')';ctx.fillRect(W/2-140,H/2+60,280,60);
+    ctx.fillStyle='rgba(255,176,32,'+alpha+')';ctx.font='11px monospace';ctx.textAlign='center';
+    ctx.fillText('W/S: Throttle | \u2191\u2193: Pitch | \u2190\u2192: Roll | A/D: Rudder',W/2,H/2+80);
+    ctx.fillText('G: Gear | F: Flaps | B: Brake | I: Ignition | P: Pause',W/2,H/2+98);
+    ctx.textAlign='left';
+    G.controlHintTime+=1/60;
+  }
   // Tutorial overlay
   if(G.tutorialActive&&G.tutorialStep<TUTORIAL_STEPS.length){
     var step=TUTORIAL_STEPS[G.tutorialStep];
