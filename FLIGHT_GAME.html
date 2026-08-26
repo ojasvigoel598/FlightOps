@@ -225,7 +225,7 @@ const UPGRADES=[
   {id:'airfoil_hl',name:'High-Lift Airfoil',desc:'+0.3 CLmax',cost:800,stat:'clMax',factor:1.2},
   {id:'reinforce',name:'Structural Reinforce',desc:'+50% integrity',cost:1500,stat:'integrityMax',factor:1.5},
 ];
-var TUTORIAL_STEPS=[
+const TUTORIAL_STEPS=[
   {title:'Welcome to FlightOps!',text:'You are about to fly a real aircraft with real aerodynamics. This tutorial will guide you through your first flight.',condition:function(){return true}},
   {title:'Engine Start',text:'Press I to start the engine. You will hear it spool up.',condition:function(){return G.engineRunning}},
   {title:'Release Brake',text:'Press B to release the parking brake. You need this off to move.',condition:function(){return !G.brakeOn}},
