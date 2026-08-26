@@ -116,7 +116,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         <div>🔧 <kbd>G</kbd> Gear &nbsp; <kbd>F</kbd> Flaps &nbsp; <kbd>B</kbd> Brake</div>
       </div>
     </div>
-    <div style="color:var(--faint);font-size:12px;margin-top:12px">Real flight dynamics • Angular momentum • AoA-driven lift • No API keys • Works offline</div>
+    <div id="credits-display" style="color:var(--primary);font-size:14px;font-weight:700"></div>
+<div style="color:var(--faint);font-size:12px;margin-top:12px">Real flight dynamics • Angular momentum • AoA-driven lift • No API keys • Works offline</div>
   </div>
   <div id="design" class="screen"><div id="design-content"></div></div>
   <div id="flight-screen" class="screen">
@@ -219,6 +220,20 @@ const MISSIONS=[
 ];
 
 // ============================================================
+// PERSISTENCE — localStorage save/load
+// ============================================================
+function loadProgress(){
+  try{
+    const d=JSON.parse(localStorage.getItem('flightops_progress'));
+    if(d){G.credits=d.credits||0;G.completedMissions=d.completedMissions||[];G.highScores=d.highScores||{};return}
+  }catch(e){}
+  G.credits=0;G.completedMissions=[];G.highScores={};
+}
+function saveProgress(){
+  try{localStorage.setItem('flightops_progress',JSON.stringify({credits:G.credits,completedMissions:G.completedMissions,highScores:G.highScores}))}catch(e){}
+}
+
+// ============================================================
 // GAME STATE — Single authoritative simulation state
 // ============================================================
 let G={
@@ -285,6 +300,8 @@ let G={
   stallWarnings:0,
   // Visual effects
   particles:[],shakeX:0,shakeY:0,shakeDur:0,
+  // Progression
+  credits:0,completedMissions:[],highScores:{},
   // UI
   xray:false,
   perf:{cruiseMs:0,rangeKm:0,maxLd:0,climbMs:0,stallMs:0},
@@ -308,7 +325,7 @@ function playBeep(f,d){if(!audioCtx)initAudio();const o=audioCtx.createOscillato
 // ============================================================
 // SCREEN NAV
 // ============================================================
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='design')renderDesign();if(id==='flight-screen'){resizeCanvas();updateHUD()}}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='menu'){const cd=document.getElementById('credits-display');if(cd)cd.textContent=G.credits>0?'⭐ '+G.credits+' credits earned':''}if(id==='design')renderDesign();if(id==='flight-screen'){resizeCanvas();updateHUD()}}
 
 // ============================================================
 // DESIGN SCREEN
@@ -344,7 +361,7 @@ function renderDesign(){
     <button class="launch-btn" style="margin-top:16px" onclick="showScreen('flight-screen');resizeCanvas();updateHUD();" ${!G.mission?'disabled':''}>🛫 Enter Cockpit</button>
     <div style="height:60px"></div>`;
 }
-function selectMission(id){G.mission=MISSIONS.find(m=>m.id===id)||null;renderDesign()}
+function selectMission(id){const m=MISSIONS.find(mm=>mm.id===id);if(!m)return;if(m.diff>=2){const easierCompleted=MISSIONS.some(mm=>mm.diff<m.diff&&G.completedMissions.includes(mm.id));if(!easierCompleted){playBeep(200,0.15);return}}G.mission=m;renderDesign()}
 function getTip(){const tips=[];if(G.wing==='long')tips.push('Long, slender wings have high aspect ratio → less induced drag (CDi ∝ 1/AR). Gliders use AR>15.');if(G.wing==='short')tips.push('Short wings = low aspect ratio → more induced drag but higher roll rate. Fighter jets use this.');if(G.wing==='wide')tips.push('Wide wing = large S → more lift at same speed (L = ½ρV²S·CL). But also more parasite drag.');if(G.engine==='turbofan')tips.push('Jet thrust decreases with altitude (less air density → less mass flow). That\'s why jets cruise high.');if(G.engine==='electric')tips.push('Electric motors have instant torque. No spool-up time! But battery mass doesn\'t decrease as you fly.');if(G.tail==='canard')tips.push('Canards generate positive lift AND provide pitch control. They stall BEFORE the main wing, protecting it.');if(G.tail==='none')tips.push('Flying wings have no tail → lower drag but poor pitch stability. Need fly-by-wire.');if(G.airfoil==='naca4412')tips.push('Cambered airfoil: CL0 > 0 (lifts at zero AoA). More drag at high speed but more lift at low speed.');if(G.airfoil==='naca0012')tips.push('Symmetric airfoil: CL0 = 0. Zero lift at zero AoA. But CL vs AoA slope is nearly the same.');if(!tips.length)tips.push('Try different wing + airfoil + engine combos. Watch how they change stall speed and cruise speed in the perf panel!');return tips[0]}
 
 // ---- PERFORMANCE COMPUTATION ----
@@ -788,6 +805,14 @@ function finishFlight(completed){
   const smoothScore=Math.max(0,100-G.stallWarnings*5-G.controlSmoothness*2);
   const engScore=Math.round((pct*40+clamp(fuelEff*100,0,30)+clamp(smoothScore,0,20)+(G.integrity>50?10:G.integrity/5)));
 
+  // Save progress
+  if(G.mission){
+    G.credits+=Math.round(G.mission.credit*pct);
+    if(!G.completedMissions.includes(G.mission.id))G.completedMissions.push(G.mission.id);
+    const key=G.mission.id;
+    if(!G.highScores[key]||clamp(engScore,0,100)>G.highScores[key])G.highScores[key]=clamp(engScore,0,100);
+    saveProgress();
+  }
   const overlay=document.getElementById('result-overlay');
   overlay.style.display='flex';
   overlay.innerHTML=`<div class="result-card">
@@ -928,7 +953,7 @@ function startFlight(){
   G.fuelKg=300;G.massKg=G.dryMassKg+300;
   G.totalTime=0;G.distFlown=0;G.progress=0;
   G.integrity=100;G.icingLevel=0;G.maxSpeed=0;G.maxAoA=0;G.maxG=1;G.minG=1;
-  G.activeEvent=null;G.eventLog=[];G.totalFuelUsed=0;G.controlSmoothness=0;G.stallWarnings=0;
+  G.activeEvent=null;G.eventLog=[];G.totalFuelUsed=0;G.controlSmoothness=0;G.stallWarnings=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;
   G.engineRunning=false;G.engineRPM=0;G.engineTemp=20;G.thrustN=0;G.particles=[];G.shakeX=0;G.shakeY=0;G.shakeDur=0;
   initAudio();startEngineSound();
 }
@@ -1244,6 +1269,7 @@ function gameLoop(ts){
 }
 
 // ---- INIT ----
+loadProgress();
 window.addEventListener('resize',()=>{if(G.flying)resizeCanvas()});
 requestAnimationFrame(gameLoop);
 </script>
