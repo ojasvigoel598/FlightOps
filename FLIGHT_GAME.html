@@ -1119,7 +1119,7 @@ function drawInstruments(){
   ctx.fillStyle='#E2E8F0';ctx.font='10px monospace';ctx.textAlign='center';
   ctx.fillText((G.airspeedMs*3.6).toFixed(0)+' km/h',W/2,sy-4);ctx.textAlign='left';
   // Altitude bar (right side, vertical)
-  var ax=W-30,ay=100,ah=200;
+  const ax=W-30,ay=100,ah=200;
   ctx.fillStyle='#0D1B2A';ctx.fillRect(ax-5,ay,10,ah);
   var altPct=clamp(G.alt/10000,0,1);
   ctx.fillStyle=G.alt>8000?'#EF4444':'#3B82F6';
