@@ -928,11 +928,28 @@ function drawScene(){
   const W=canvas.width,H=canvas.height;
   const groundY=H*0.65;
 
-  // Sky gradient
+  // Sky gradient — progressive altitude-based coloring
+  const altF=clamp(G.alt/12000,0,1);
   const skyGrad=ctx.createLinearGradient(0,0,0,groundY);
-  if(G.alt>3000){skyGrad.addColorStop(0,'#0a1628');skyGrad.addColorStop(1,'#1a3a5c')}
-  else{skyGrad.addColorStop(0,'#1a3a5c');skyGrad.addColorStop(0.5,'#6CB4EE');skyGrad.addColorStop(1,'#B0D4F1')}
+  const topR=Math.round(26*(1-altF)+5*altF);
+  const topG=Math.round(58*(1-altF)+5*altF);
+  const topB=Math.round(92*(1-altF)+16*altF);
+  skyGrad.addColorStop(0,'rgb('+topR+','+topG+','+topB+')');
+  skyGrad.addColorStop(0.5,'rgb('+Math.round(108*(1-altF*0.7))+','+Math.round(180*(1-altF*0.6))+','+Math.round(238*(1-altF*0.5))+')');
+  skyGrad.addColorStop(1,'rgb('+Math.round(176-80*altF)+','+Math.round(212-60*altF)+','+Math.round(241-40*altF)+')');
   ctx.fillStyle=skyGrad;ctx.fillRect(0,0,W,groundY);
+
+  // Stars above 5000m — density increases with altitude
+  if(G.alt>5000){
+    const starCount=Math.floor(altF*80);
+    ctx.fillStyle='rgba(255,255,255,'+Math.min(0.9,altF*1.2)+')';
+    for(let i=0;i<starCount;i++){
+      const sx=((i*127+42)%W);
+      const sy=((i*89+17)%Math.floor(groundY*0.7));
+      const sz=((i*31)%3)+1;
+      ctx.beginPath();ctx.arc(sx,sy,sz*0.5,0,Math.PI*2);ctx.fill();
+    }
+  }
 
   // Clouds (parallax by altitude)
   ctx.fillStyle='rgba(255,255,255,0.5)';
