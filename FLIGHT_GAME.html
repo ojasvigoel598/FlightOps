@@ -1183,7 +1183,7 @@ function drawScene(){
     if(p.life<=0){G.particles.splice(i,1);continue}
     ctx.globalAlpha=Math.min(1,p.life*2);
     ctx.fillStyle=p.color;
-    ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();
+    if(p.contrail){ctx.fillRect(p.x-p.size*p.life,p.y-1,p.size*p.life*2,2)}else{ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill()}
   }
   ctx.globalAlpha=1;
 
