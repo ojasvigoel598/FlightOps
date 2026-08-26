@@ -211,7 +211,7 @@ const AIRFOILS={
   naca0018:{label:'Thick',icon:'📦',tip:'Thick wing for structural strength. Gliders and heavy aircraft.',tag:'Strong',clAlpha:2*Math.PI*0.93,aoaL0:0,cm0:0},
 };
 
-var ENVIRONMENTS={
+const ENVIRONMENTS={
   training:{ground1:'#2d5a27',ground2:'#1a3a14',ground3:'#0d1f0a',mountain:'#1a2a3a'},
   commercial:{ground1:'#3a6a30',ground2:'#2a4a20',ground3:'#1a3a10',mountain:'#2a3a4a'},
   military:{ground1:'#4a5a3a',ground2:'#3a4a2a',ground3:'#2a3a1a',mountain:'#3a4a5a'},
@@ -236,12 +236,6 @@ var TUTORIAL_STEPS=[
   {title:'Landing',text:'When ready, reduce throttle (S), deploy gear (G) and flaps (F), and gently descend.',condition:function(){return false}},
 ];
 
-var ENVIRONMENTS={
-  training:{ground1:'#2d5a27',ground2:'#1a3a14',ground3:'#0d1f0a',mountain:'#1a2a3a',sky:'default'},
-  commercial:{ground1:'#3a6a30',ground2:'#2a4a20',ground3:'#1a3a10',mountain:'#2a3a4a',sky:'default'},
-  military:{ground1:'#4a5a3a',ground2:'#3a4a2a',ground3:'#2a3a1a',mountain:'#3a4a5a',sky:'default'},
-  challenge:{ground1:'#3a4a5a',ground2:'#2a3a4a',ground3:'#1a2a3a',mountain:'#4a5a6a',sky:'dark'}
-};
 const MISSIONS=[
   {id:'first-flight',name:'First Flight',icon:'🎓',desc:'Your very first flight! Take off, reach 500m, land safely.',cat:'training',diff:1,credit:500,hint:'Use medium wings and a piston engine. Rotate at 60 km/h.',objectives:[{text:'Reach 500 m altitude',param:'altitude',cmp:'>=',val:500,unit:'m'},{text:'Fly 5 km',param:'distance',cmp:'>=',val:5,unit:'km'},{text:'Land safely',param:'landed',cmp:'==',val:1,unit:''}],env:{windMs:3,windDir:270,turbulence:0.1,events:[]}},
   {id:'circuit',name:'Circuit Training',icon:'🔄',desc:'Fly a traffic pattern: take off, circle, and land back.',cat:'training',diff:1,credit:600,hint:'Keep AoA below 12° to avoid stall.',objectives:[{text:'Climb to 300 m',param:'altitude',cmp:'>=',val:300,unit:'m'},{text:'Fly 8 km total',param:'distance',cmp:'>=',val:8,unit:'km'},{text:'Land on runway',param:'landed',cmp:'==',val:1,unit:''}],env:{windMs:5,windDir:180,turbulence:0.15,events:[]}},
