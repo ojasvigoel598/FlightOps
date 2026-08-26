@@ -1442,7 +1442,7 @@ function drawScene(){
   if(G.tutorialActive&&G.tutorialStep<TUTORIAL_STEPS.length){
     const step=TUTORIAL_STEPS[G.tutorialStep];
     ctx.fillStyle='rgba(13,27,42,0.92)';ctx.strokeStyle='#FFB020';ctx.lineWidth=2;
-    var tw=340,th=90,tx=W/2-tw/2,ty=30;
+    const tw=340,th=90,tx=W/2-tw/2,ty=30;
     ctx.beginPath();ctx.roundRect(tx,ty,tw,th,10);ctx.fill();ctx.stroke();
     ctx.fillStyle='#FFB020';ctx.font='bold 14px system-ui';ctx.fillText(step.title,tx+12,ty+22);
     ctx.fillStyle='#E2E8F0';ctx.font='12px system-ui';ctx.fillText(step.text,tx+12,ty+44);
