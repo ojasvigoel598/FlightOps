@@ -391,6 +391,15 @@ function renderDesign(){
     <button class="launch-btn" style="margin-top:16px" onclick="showScreen('flight-screen');resizeCanvas();updateHUD();" ${!G.mission?'disabled':''}>🛫 Enter Cockpit</button>
     <div style="height:60px"></div>`;
 }
+function buyUpgrade(id){
+  if(!G.ownedUpgrades)G.ownedUpgrades=[];
+  if(G.ownedUpgrades.indexOf(id)>=0)return;
+  var u=UPGRADES.find(function(u){return u.id===id});
+  if(!u||G.credits<u.cost){playBeep(200,0.15);return}
+  G.credits-=u.cost;G.ownedUpgrades.push(id);
+  playBeep(660,0.15);setTimeout(function(){playBeep(880,0.15)},150);
+  saveProgress();renderDesign();
+}
 function selectMission(id){const m=MISSIONS.find(mm=>mm.id===id);if(!m)return;if(m.diff>=2){const easierCompleted=MISSIONS.some(mm=>mm.diff<m.diff&&G.completedMissions.includes(mm.id));if(!easierCompleted){playBeep(200,0.15);return}}G.mission=m;renderDesign()}
 function getTip(){const tips=[];if(G.wing==='long')tips.push('Long, slender wings have high aspect ratio → less induced drag (CDi ∝ 1/AR). Gliders use AR>15.');if(G.wing==='short')tips.push('Short wings = low aspect ratio → more induced drag but higher roll rate. Fighter jets use this.');if(G.wing==='wide')tips.push('Wide wing = large S → more lift at same speed (L = ½ρV²S·CL). But also more parasite drag.');if(G.engine==='turbofan')tips.push('Jet thrust decreases with altitude (less air density → less mass flow). That\'s why jets cruise high.');if(G.engine==='electric')tips.push('Electric motors have instant torque. No spool-up time! But battery mass doesn\'t decrease as you fly.');if(G.tail==='canard')tips.push('Canards generate positive lift AND provide pitch control. They stall BEFORE the main wing, protecting it.');if(G.tail==='none')tips.push('Flying wings have no tail → lower drag but poor pitch stability. Need fly-by-wire.');if(G.airfoil==='naca4412')tips.push('Cambered airfoil: CL0 > 0 (lifts at zero AoA). More drag at high speed but more lift at low speed.');if(G.airfoil==='naca0012')tips.push('Symmetric airfoil: CL0 = 0. Zero lift at zero AoA. But CL vs AoA slope is nearly the same.');if(!tips.length)tips.push('Try different wing + airfoil + engine combos. Watch how they change stall speed and cruise speed in the perf panel!');return tips[0]}
 
