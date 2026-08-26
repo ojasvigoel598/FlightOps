@@ -1113,7 +1113,7 @@ function drawInstruments(){
   // Airspeed bar (bottom center)
   const sx=W/2-60,sy=H-25,sw=120,sh=10;
   ctx.fillStyle='#0D1B2A';ctx.fillRect(sx,sy,sw,sh);
-  var spdPct=clamp(G.airspeedMs/200,0,1);
+  const spdPct=clamp(G.airspeedMs/200,0,1);
   ctx.fillStyle=spdPct>0.9?'#EF4444':spdPct>0.7?'#FFB020':'#4ADE80';
   ctx.fillRect(sx,sy,sw*spdPct,sh);
   ctx.fillStyle='#E2E8F0';ctx.font='10px monospace';ctx.textAlign='center';
